@@ -1,0 +1,52 @@
+# Gjallar (Gateway) 配置文件
+
+gateway:
+  name: gjallar
+  version: 1.0.0
+  env: dev
+  
+  # HTTP Gateway 监听地址
+  http_addr: ":8080"
+  
+  # 上游服务地址
+  services:
+    nexus_addr: "127.0.0.1:9001"   # Nexus (写服务) gRPC 地址
+    beacon_addr: "127.0.0.1:9002"  # Beacon (读服务) gRPC 地址
+  
+  # 安全配置
+  security:
+    jwt_secret: "your-secret-key-change-in-production"
+    jwt_expiration: 24h
+  
+  # 超时配置
+  timeout:
+    read: 10s
+    write: 10s
+    idle: 120s
+  
+  # 限流配置（可选）
+  rate_limit:
+    enabled: true
+    requests_per_second: 100
+    burst: 200
+  
+  # CORS 配置（可选）
+  cors:
+    enabled: true
+    allowed_origins:
+      - "*"
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "PATCH"
+    allowed_headers:
+      - "Authorization"
+      - "Content-Type"
+    max_age: 86400
+
+logger:
+  level: info
+  encoding: console  # Gateway 使用 console 格式便于查看
+  dazzle: true       # 开启彩色输出

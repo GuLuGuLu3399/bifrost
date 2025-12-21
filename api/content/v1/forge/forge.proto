@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package bifrost.content.v1.forge;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/gulugulu3399/bifrost/api/content/v1/forge;forgev1";
+
+// ==========================================
+// Forge Service: 渲染与计算核心
+// ==========================================
+service RenderService {
+
+  // 实时预览 (无状态计算)
+  // 用于编辑器：前端发 Markdown -> Forge 渲染 -> 返回 HTML，不存库
+  rpc RenderPreview(RenderPreviewRequest) returns (RenderPreviewResponse) {
+    option (google.api.http) = {
+      post: "/v1/render/preview"
+      body: "*"
+    };
+  }
+
+  // 获取渲染器元数据 (如支持的 Markdown 扩展版本)
+  rpc GetRenderMeta(GetRenderMetaRequest) returns (GetRenderMetaResponse) {
+    option (google.api.http) = {
+      get: "/v1/render/meta"
+    };
+  }
+}
+
+// --- Messages ---
+
+message RenderPreviewRequest {
+  string raw_markdown = 1;
+  // 可选：指定渲染模式 (如 "article", "comment", "bio") 以应用不同的 XSS 策略
+  string mode = 2;
+}
+
+message RenderPreviewResponse {
+  string html_body = 1;
+  string toc_json = 2; // 同时也生成目录结构供预览
+  float took_ms = 3;   // 性能监控：渲染耗时
+}
+
+message GetRenderMetaRequest {}
+
+message GetRenderMetaResponse {
+  string version = 1;
+  repeated string enabled_extensions = 2; // e.g. ["table", "strikethrough", "mermaid"]
+}

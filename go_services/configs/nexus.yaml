@@ -1,0 +1,85 @@
+# Nexus (Write Service) 配置文件
+
+app:
+  name: nexus
+  version: 1.0.0
+  env: dev
+  grpc_port: ":9001"  # Nexus gRPC 端口
+  snowflake_node: 1   # Snowflake 节点 ID
+
+  metrics:
+    enable: true
+    http_addr: ":8081"  # Prometheus metrics 端口
+    namespace: bifrost
+  
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+    ca_file: ""
+  
+  observability:
+    jaeger_collector: ""
+    otlp_collector: ""
+  
+  security:
+    jwt_secret: "your-secret-key-change-in-production"
+    jwt_expiration: 24h
+  
+  services:
+    forge:
+      addr: "127.0.0.1:9010"  # Forge (Rust) gRPC 地址
+      timeout: 10s
+      use_tls: false
+      tls_skip_verify: false
+    
+    oracle:
+      addr: "127.0.0.1:9020"  # Oracle (Python) gRPC 地址
+      timeout: 10s
+      use_tls: false
+      tls_skip_verify: false
+    
+    fail_on_client_init: false  # 允许外部服务不可用时仍能启动
+  
+  graceful_shutdown_timeout: 10s
+
+logger:
+  level: info
+  encoding: json  # json 或 console
+  dazzle: false   # 彩色输出（开发环境可设为 true）
+
+data:
+  database:
+    driver: "pgx"
+    dsn: "host=localhost user=postgres password=postgres dbname=bifrost port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: 1h
+    conn_max_idle_time: 5m
+
+  redis:
+    addr: "localhost:6379"
+    password: ""
+    db: 0
+    read_timeout: 3s
+    write_timeout: 3s
+    pool_size: 10
+    min_idle_conns: 2
+  
+  s3:
+    endpoint: "localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    bucket: "bifrost"
+    use_ssl: false
+    region: "us-east-1"
+  
+  cache:
+    post_ttl: 1h
+    post_ttl_jitter: 5m
+    view_count_flush_interval: 60s
+    batch_size: 200
+    invalidation_delay: 500ms
+  
+messenger:
+  addr: "nats://127.0.0.1:4222"

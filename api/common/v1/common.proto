@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package bifrost.common.v1;
+
+option go_package = "github.com/gulugulu3399/bifrost/api/common/v1;commonv1";
+
+// 分页请求标准
+message PageRequest {
+  int32 page_size = 1;   // 每页数量，建议默认 20，最大 100
+  string page_token = 2; // 下一页的游标 (Cursor) 或 页码
+}
+
+// 分页响应标准
+message PageResponse {
+  string next_page_token = 1; // 下一页游标，为空表示没有更多数据
+  int32 total_count = 2;      // 总记录数 (可选)
+}
+
+// 通用元数据 (对应 DB 中的 JSONB meta)
+message Meta {
+  map<string, string> data = 1;
+}
+
+// 排序方向
+enum SortDirection {
+  SORT_DIRECTION_UNSPECIFIED = 0;
+  SORT_DIRECTION_ASC = 1;
+  SORT_DIRECTION_DESC = 2;
+}

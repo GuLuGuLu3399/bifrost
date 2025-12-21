@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package bifrost.content.v1.beacon;
+
+import "google/api/annotations.proto";
+import "api/common/v1/common.proto";
+// 引入 models 仅为了使用枚举，或者在 PostDetail 里复用基础类型，
+// 但核心响应结构我们要自己定义
+import "api/content/v1/models.proto";
+
+option go_package = "github.com/gulugulu3399/bifrost/api/content/v1/beacon;beaconv1";
+
+// ==========================================
+// 1. 文章读服务 (Post Query)
+// ==========================================
+service BeaconService {
+
+  // 获取文章详情 (HTML渲染版，用于详情页)
+  rpc GetPost(GetPostRequest) returns (GetPostResponse) {
+    option (google.api.http) = {
+      get: "/v1/posts/{slug_or_id}"
+    };
+  }
+
+  // 获取文章列表 (轻量摘要版，用于首页/归档)
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/v1/posts"
+    };
+  }
+
+  // [关键新增] 批量获取文章 (通常用于搜索结果聚合，建议返回摘要)
+  rpc BatchGetPosts(BatchGetPostsRequest) returns (BatchGetPostsResponse) {
+    option (google.api.http) = {
+      post: "/v1/posts:batch"
+      body: "*"
+    };
+  }
+
+  // ==========================================
+  // 2. 评论读服务 (Comment Query)
+  // ==========================================
+
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse) {
+    option (google.api.http) = {
+      get: "/v1/posts/{post_id}/comments"
+    };
+  }
+
+  // ==========================================
+  // 3. 用户/作者读服务
+  // ==========================================
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/v1/users/{user_id}"
+    };
+  }
+
+  // ==========================================
+  // 4. 元数据读服务
+  // ==========================================
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse) {
+    option (google.api.http) = {
+      get: "/v1/categories"
+    };
+  }
+
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse) {
+    option (google.api.http) = {
+      get: "/v1/tags"
+    };
+  }
+}
+
+// ==========================================
+// 核心读模型 (Read Models / DTOs)
+// ==========================================
+
+// [文章摘要] 列表页专用 (无 Markdown/HTML)
+message PostSummary {
+  int64 id = 1;
+  string title = 2;
+  string slug = 3;
+  string summary = 4;
+  string cover_image_key = 5;
+
+  // 统计
+  int32 view_count = 6;
+  int32 like_count = 7;
+  int32 comment_count = 8;
+
+  // 核心元数据
+  int64 published_at = 9; // Unix Timestamp
+
+  // 内嵌简易对象
+  AuthorInfo author = 10;
+  CategoryItem category = 11;
+  repeated TagItem tags = 12;
+}
+
+// [文章详情] 详情页专用 (含 HTML)
+message PostDetail {
+  int64 id = 1;
+  string title = 2;
+  string slug = 3;
+  string summary = 4;
+  string cover_image_key = 5;
+
+  string html_body = 6; // 渲染后的 HTML
+  string toc_json = 7;  // 目录结构
+
+  int32 view_count = 8;
+  int32 like_count = 9;
+  int64 published_at = 10;
+  int64 updated_at = 11;
+
+  AuthorInfo author = 12;
+  CategoryItem category = 13;
+  repeated TagItem tags = 14;
+
+  // 临近文章导航
+  int64 prev_post_id = 15;
+  string prev_post_title = 16;
+  string prev_post_slug = 17;
+
+  int64 next_post_id = 18;
+  string next_post_title = 19;
+  string next_post_slug = 20;
+}
+
+// [其他 DTO]
+message AuthorInfo {
+  int64 id = 1;
+  string nickname = 2;
+  string avatar_key = 3;
+}
+
+message CategoryItem {
+  int64 id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  int32 post_count = 5;
+}
+
+message TagItem {
+  int64 id = 1;
+  string name = 2;
+  string slug = 3;
+  int32 post_count = 4;
+}
+
+message CommentItem {
+  int64 id = 1;
+  string content = 2;
+  int64 created_at = 3;
+  AuthorInfo user = 4;
+  int64 parent_id = 5;
+}
+
+message UserProfile {
+  int64 id = 1;
+  string username = 2;
+  string nickname = 3;
+  string avatar_key = 4;
+  string bio = 5;
+  int32 post_count = 6;
+}
+
+
+// --- Request/Response Definitions ---
+
+// Post
+message GetPostRequest {
+  string slug_or_id = 1;
+}
+message GetPostResponse {
+  PostDetail post = 1; // ✅ 修复：使用 PostDetail
+}
+
+message ListPostsRequest {
+  bifrost.common.v1.PageRequest page = 1;
+  int64 category_id = 2;
+  int64 tag_id = 3;
+  int64 author_id = 4;
+  // 移除 status，Beacon 只能查 Published
+}
+message ListPostsResponse {
+  repeated PostSummary posts = 1; // ✅ 修复：使用 PostSummary
+  bifrost.common.v1.PageResponse page = 2;
+}
+
+message BatchGetPostsRequest {
+  repeated int64 post_ids = 1;
+}
+message BatchGetPostsResponse {
+  repeated PostSummary posts = 1; // ✅ 修复：批量获取通常也用摘要，减少带宽
+}
+
+// Comment
+message ListCommentsRequest {
+  int64 post_id = 1;
+  bifrost.common.v1.PageRequest page = 2;
+  int64 root_id = 3;
+}
+message ListCommentsResponse {
+  repeated CommentItem comments = 1; // ✅ 修复：使用 CommentItem
+  bifrost.common.v1.PageResponse page = 2;
+}
+
+// User
+message GetUserRequest {
+  int64 user_id = 1;
+}
+message GetUserResponse {
+  UserProfile user = 1; // ✅ 修复：使用 UserProfile (脱敏)
+}
+
+// Meta
+message ListCategoriesRequest {}
+message ListCategoriesResponse {
+  repeated CategoryItem categories = 1; // ✅ 修复：使用 CategoryItem
+}
+
+message ListTagsRequest {}
+message ListTagsResponse {
+  repeated TagItem tags = 1; // ✅ 修复：使用 TagItem
+}

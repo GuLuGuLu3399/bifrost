@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package bifrost.search.v1;
+
+import "google/api/annotations.proto";
+import "api/common/v1/common.proto";
+
+option go_package = "github.com/gulugulu3399/bifrost/api/search/v1;searchv1";
+
+// Mirror Service: Rust 实现的高性能全文检索引擎
+service MirrorService {
+
+  // 全文搜索 (支持高亮、过滤、分面统计)
+  rpc Search(SearchRequest) returns (SearchResponse) {
+    option (google.api.http) = {
+      get: "/v1/search"
+    };
+  }
+
+  // [新增] 搜索建议/自动补全 (Search-as-you-type)
+  // 用于搜索框下拉提示，极低延迟 (<20ms)
+  rpc Suggest(SuggestRequest) returns (SuggestResponse) {
+    option (google.api.http) = {
+      get: "/v1/search/suggest"
+    };
+  }
+
+  // [新增] 索引管理接口 (运维用，通常不暴露给公网)
+  // 用于手动触发重新索引或调试
+  rpc DebugIndex(DebugIndexRequest) returns (DebugIndexResponse);
+}
+
+// --- Search Messages ---
+
+message SearchRequest {
+  string query = 1;                 // 搜索关键词
+  bifrost.common.v1.PageRequest page = 2; // 分页
+
+  // [优化] 结构化过滤器，替代原来的 repeated string
+  // Tantivy 处理这种结构化 Bool Query 速度极快
+  message Filter {
+    int64 category_id = 1;          // 仅看某分类
+    int64 tag_id = 2;               // 仅看某标签
+    int64 author_id = 3;            // 仅看某作者
+    int64 date_range_start = 4;     // 时间范围筛选 (Unix Timestamp)
+    int64 date_range_end = 5;
+  }
+  Filter filter = 3;
+
+  // [新增] 请求分面统计 (例如：我想知道搜索结果中，各分类下的文章数量)
+  bool include_facets = 4;
+}
+
+message SearchResponse {
+  message Hit {
+    int64 id = 1;                   // 文章 ID (Snowflake)
+    float score = 2;                // BM25 相关性得分
+    string title = 3;               // 原标题
+    string slug = 4;                // 用于前端路由跳转
+
+    // 高亮片段 (HTML)
+    // e.g. "Rust is <em>great</em> for systems..."
+    string highlight_title = 5;
+    string highlight_content = 6;
+
+    int64 published_at = 7;         // 用于结果展示的时间
+  }
+
+  // 分面统计项
+  message FacetBucket {
+    string value = 1;   // e.g. "Technology" or CategoryID "1001"
+    int64 count = 2;    // 命中数量
+  }
+
+  message Facets {
+    map<string, int64> categories = 1; // key: category_id, value: count
+    map<string, int64> tags = 2;       // key: tag_id, value: count
+  }
+
+  repeated Hit hits = 1;
+  int32 total_hits = 2;
+  float took_ms = 3;      // 搜索引擎耗时
+  Facets facets = 4;      // [新增] 返回统计信息
+}
+
+// --- Suggest Messages ---
+
+message SuggestRequest {
+  string prefix = 1;      // 用户当前输入的字符
+  int32 limit = 2;        // 默认 5-10 条
+}
+
+message SuggestResponse {
+  repeated string suggestions = 1; // e.g. ["rust tutorial", "rust lifetime"]
+  float took_ms = 2;
+}
+
+// --- Debug Messages ---
+
+message DebugIndexRequest {
+  int64 doc_id = 1; // 检查特定文档是否在索引中
+}
+
+message DebugIndexResponse {
+  bool indexed = 1;
+  string stored_fields_json = 2; // 返回索引中实际存储的内容
+}

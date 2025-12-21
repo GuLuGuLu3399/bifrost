@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query.sql" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_1.sql" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_2.sql" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_3.sql" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/beacon/data/comment.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/beacon/data/meta.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/beacon/data/post.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/beacon/data/user.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/nexus/data/category.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/nexus/data/comment.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/nexus/data/post.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/nexus/data/tag.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+    <file url="file://$PROJECT_DIR$/internal/nexus/data/user.go" value="326044ca-4085-44ce-b2f5-bafe41496618" />
+  </component>
+</project>

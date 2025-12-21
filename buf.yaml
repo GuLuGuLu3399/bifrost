@@ -1,0 +1,20 @@
+version: v1
+
+breaking:
+  ignore_unstable_packages: true
+
+lint:
+  use:
+    - DEFAULT
+    - COMMENTS
+
+generate:
+  - path: go_services/api
+    plugin: buf.build/bufbuild/go:v1.31.1
+    opt:
+      - paths=source_relative
+  - path: go_services/api
+    plugin: buf.build/grpc-ecosystem/grpc-gateway:v2.27.3
+    opt:
+      - paths=source_relative
+      - grpc_api_configuration=api/gateway.yaml

@@ -1,0 +1,361 @@
+syntax = "proto3";
+
+package bifrost.content.v1.nexus;
+
+import "api/content/v1/models.proto";
+import "google/api/annotations.proto";
+option go_package = "github.com/gulugulu3399/bifrost/api/content/v1/nexus;nexusv1";
+
+// ==========================================
+// 用户服务 (User Service)
+// ==========================================
+service UserService {
+  // 注册
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/register"
+      body: "*"
+    };
+  }
+
+  // 登录
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  // 修改密码
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {
+    option (google.api.http) = {
+      post: "/v1/users/password"
+      body: "*"
+    };
+  }
+
+  // 获取当前用户资料 (用于"编辑个人资料"页面的回显，非公开主页)
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option (google.api.http) = {
+      get: "/v1/users/profile"
+    };
+  }
+
+  // 更新资料
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
+    option (google.api.http) = {
+      put: "/v1/users/profile"
+      body: "*"
+    };
+  }
+}
+
+// ==========================================
+// 文章服务 (Post Service)
+// ==========================================
+service PostService {
+  // [新增] 管理端获取文章列表 (无缓存，实时，看全部)
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
+    option (google.api.http) = {
+      get: "/v1/posts"
+    };
+  }
+  // 创建文章
+  rpc CreatePost(CreatePostRequest) returns (CreatePostResponse) {
+    option (google.api.http) = {
+      post: "/v1/posts"
+      body: "*"
+    };
+  }
+
+  // 更新文章 (基本信息 + Markdown)
+  rpc UpdatePost(UpdatePostRequest) returns (UpdatePostResponse) {
+    option (google.api.http) = {
+      put: "/v1/posts/{post_id}"
+      body: "*"
+    };
+  }
+
+  // [内部/系统接口] 回写渲染后的 HTML (供 Rust Forge 调用)
+  rpc UpdatePostRenderedContent(UpdatePostRenderedContentRequest) returns (UpdatePostRenderedContentResponse);
+
+  // 删除文章
+  rpc DeletePost(DeletePostRequest) returns (DeletePostResponse) {
+    option (google.api.http) = {
+      delete: "/v1/posts/{post_id}"
+    };
+  }
+
+  // 获取文章详情 (仅用于"编辑文章"页面的回显，不用于博客前台展示)
+  rpc GetPost(GetPostRequest) returns (GetPostResponse) {
+    option (google.api.http) = {
+      get: "/v1/posts/{post_id}"
+    };
+  }
+}
+
+// ==========================================
+// 评论服务 (Comment Service)
+// ==========================================
+service CommentService {
+  // 发表评论
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse) {
+    option (google.api.http) = {
+      post: "/v1/posts/{post_id}/comments"
+      body: "*"
+    };
+  }
+
+  // 删除评论 (作者或管理员)
+  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse) {
+    option (google.api.http) = {
+      delete: "/v1/comments/{comment_id}"
+    };
+  }
+}
+
+// ==========================================
+// 标签服务 (Tag Service)
+// ==========================================
+service TagService {
+
+  // 删除标签 (清理操作)
+  rpc DeleteTag(DeleteTagRequest) returns (DeleteTagResponse) {
+    option (google.api.http) = {
+      delete: "/v1/tags/{tag_id}"
+    };
+  }
+}
+
+// ==========================================
+// 分类服务 (Category Service)
+// ==========================================
+service CategoryService {
+  // 创建分类
+  rpc CreateCategory(CreateCategoryRequest) returns (CreateCategoryResponse) {
+    option (google.api.http) = {
+      post: "/v1/categories"
+      body: "*"
+    };
+  }
+
+  // 更新分类
+  rpc UpdateCategory(UpdateCategoryRequest) returns (UpdateCategoryResponse) {
+    option (google.api.http) = {
+      put: "/v1/categories/{category_id}"
+      body: "*"
+    };
+  }
+
+  // 删除分类
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse) {
+    option (google.api.http) = {
+      delete: "/v1/categories/{category_id}"
+    };
+  }
+
+  // 获取所有分类 (管理后台用，数据量小直接返回全量)
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse) {
+    option (google.api.http) = {
+      get: "/v1/categories"
+    };
+  }
+}
+
+
+// --- 请求/响应消息定义 ---
+
+// User Messages
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string nickname = 4;
+}
+
+message RegisterResponse {
+  int64 user_id = 1;
+}
+
+message LoginRequest {
+  string identifier = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+}
+
+message ChangePasswordRequest {
+  string old_password = 1;
+  string new_password = 2;
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+}
+
+message GetProfileRequest {
+  int64 user_id = 1;
+}
+
+message GetProfileResponse {
+  int64 user_id = 1;
+  string username = 2;
+  string nickname = 3;
+  string bio = 4;
+  string avatar_key = 5;
+}
+
+message UpdateProfileRequest {
+  string nickname = 1;
+  string bio = 2;
+  string avatar_key = 3;
+  string theme = 4;
+  string language = 5;
+}
+
+message UpdateProfileResponse {
+  bool success = 1;
+}
+
+
+// Post Messages
+message CreatePostRequest {
+  string title = 1;
+  string slug = 2;
+  string raw_markdown = 3;
+  int64 category_id = 4;
+  repeated string tag_names = 5;
+  PostStatus status = 6;
+  string cover_image_key = 7;
+  string resource_key = 8;
+}
+
+message CreatePostResponse {
+  int64 post_id = 1;
+}
+
+message UpdatePostRequest {
+  int64 post_id = 1;
+  string title = 2;
+  string raw_markdown = 3;
+  PostStatus status = 4;
+  string cover_image_key = 5;
+  string resource_key = 6;
+  int64 category_id = 7;
+  repeated string tag_names = 8;
+}
+
+
+message UpdatePostResponse {
+  int64 version = 1;
+}
+
+message UpdatePostRenderedContentRequest {
+  int64 post_id = 1;
+  string html_body = 2;
+  string toc_json = 3;
+  string summary = 4;
+}
+
+message UpdatePostRenderedContentResponse {
+  bool success = 1;
+}
+
+message DeletePostRequest {
+  int64 post_id = 1;
+}
+
+message DeletePostResponse {
+  bool success = 1;
+}
+
+message GetPostRequest {
+  int64 post_id = 1;
+}
+
+message GetPostResponse {
+  Post post = 1;
+}
+// 请求定义 (比 Beacon 的更强大，支持搜状态)
+message ListPostsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+
+  // 管理端筛选器
+  string keyword = 3;       // 搜标题/内容
+  int64 category_id = 4;
+  PostStatus status = 5;    // 管理员可以搜 "DRAFT"
+}
+
+message ListPostsResponse {
+  repeated bifrost.content.v1.Post posts = 1; // 直接返回完整 Model
+  int32 total_count = 2;
+}
+
+// Comment Messages
+message CreateCommentRequest {
+  int64 post_id = 1;
+  int64 parent_id = 2;
+  string content = 3;
+}
+
+message CreateCommentResponse {
+  int64 comment_id = 1;
+  CommentStatus status = 2;
+}
+
+message DeleteCommentRequest {
+  int64 comment_id = 1;
+}
+
+message DeleteCommentResponse {
+  bool success = 1;
+}
+
+message DeleteTagRequest {
+  int64 tag_id = 1;
+}
+
+message DeleteTagResponse {
+  bool success = 1;
+}
+
+// Category Messages
+message CreateCategoryRequest {
+  string name = 1;
+  string slug = 2;
+  string description = 3;
+}
+
+message CreateCategoryResponse {
+  int64 category_id = 1;
+}
+
+message UpdateCategoryRequest {
+  int64 category_id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+}
+
+message UpdateCategoryResponse {
+  bool success = 1;
+}
+
+message DeleteCategoryRequest {
+  int64 category_id = 1;
+}
+
+message DeleteCategoryResponse {
+  bool success = 1;
+}
+
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+  repeated bifrost.content.v1.Category categories = 1;
+}

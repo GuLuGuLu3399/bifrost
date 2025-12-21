@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package bifrost.content.v1;
+
+import "google/protobuf/timestamp.proto";
+import "api/common/v1/common.proto";
+
+option go_package = "github.com/gulugulu3399/bifrost/api/content/v1;contentv1";
+
+// ==========================================
+// 枚举定义 (修复点：之前缺失的部分)
+// ==========================================
+
+// 文章状态
+enum PostStatus {
+  POST_STATUS_UNSPECIFIED = 0; // 默认值必须是 0
+  POST_STATUS_DRAFT = 1;       // 草稿
+  POST_STATUS_PUBLISHED = 2;   // 已发布
+  POST_STATUS_ARCHIVED = 3;    // 已归档
+}
+
+// 文章可见性
+enum PostVisibility {
+  POST_VISIBILITY_UNSPECIFIED = 0;
+  POST_VISIBILITY_PUBLIC = 1;   // 公开
+  POST_VISIBILITY_HIDDEN = 2;   // 隐藏 (知道链接可见)
+  POST_VISIBILITY_PASSWORD = 3; // 密码保护
+}
+
+// 评论状态
+enum CommentStatus {
+  COMMENT_STATUS_UNSPECIFIED = 0;
+  COMMENT_STATUS_PENDING = 1;   // 待审核
+  COMMENT_STATUS_APPROVED = 2;  // 已通过
+  COMMENT_STATUS_SPAM = 3;      // 垃圾评论
+}
+
+// ==========================================
+// 消息实体 (对应 DB Tables)
+// ==========================================
+
+message User {
+  int64 id = 1;             // [修复] 确保使用 int64 (Snowflake)
+  string username = 2;
+  string nickname = 3;
+  string avatar_key = 4;
+  string bio = 5;
+  bool is_admin = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message Category {
+  int64 id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  int32 post_count = 5;
+}
+
+message Tag {
+  int64 id = 1;
+  string name = 2;
+  string slug = 3;
+  int32 post_count = 4;
+}
+
+message Post {
+  int64 id = 1;
+  string title = 2;
+  string slug = 3;
+  string summary = 4;
+  string cover_image_key = 5;
+  string resource_key = 19;
+
+  // 核心内容
+  string raw_markdown = 6;
+  string html_body = 7;
+  string toc_json = 20;
+
+  PostStatus status = 8;
+  PostVisibility visibility = 9;
+
+  // 关联
+  User author = 10;
+  Category category = 11;
+  repeated Tag tags = 12;
+
+  // 统计
+  int32 view_count = 13;
+  int32 like_count = 14;
+  int32 comment_count = 15;
+
+  google.protobuf.Timestamp published_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+
+  // 扩展数据 (JSONB)
+  bifrost.common.v1.Meta meta = 18;
+}
+
+message Comment {
+  int64 id = 1;
+  int64 post_id = 2;
+  User user = 3;
+  int64 parent_id = 4; // 回复谁 (0 表示无)
+  int64 root_id = 5;   // 楼层ID
+  string content = 6;
+  CommentStatus status = 7; // [修复] 引用上面定义的枚举
+  google.protobuf.Timestamp created_at = 8;
+}

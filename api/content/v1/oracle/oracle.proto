@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package bifrost.analysis.v1.oracle;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/gulugulu3399/bifrost/api/analysis/v1/oracle;oraclev1";
+
+// ==========================================
+// Oracle Service: 数据分析与报表
+// ==========================================
+service AnalysisService {
+
+  // 上报埋点事件 (Fire-and-forget 模式)
+  // 通常由 Heimdall/Gjallar 异步调用，或者前端通过 Beacon 转发
+  rpc TrackEvent(TrackEventRequest) returns (TrackEventResponse) {
+    option (google.api.http) = {
+      post: "/v1/analysis/events"
+      body: "*"
+    };
+  }
+
+  // 获取仪表盘核心指标 (Admin Only)
+  rpc GetDashboardStats(GetDashboardStatsRequest) returns (GetDashboardStatsResponse) {
+    option (google.api.http) = {
+      get: "/v1/analysis/dashboard"
+    };
+  }
+
+  // 获取内容质量评分 (供 Nexus 自动打分使用)
+  rpc GetContentScore(GetContentScoreRequest) returns (GetContentScoreResponse);
+}
+
+// --- Messages ---
+
+message TrackEventRequest {
+  string event_type = 1; // e.g., "post_view", "link_click"
+  int64 user_id = 2;     // 0 if anonymous
+  string target_id = 3;  // post_id or other resource
+  map<string, string> meta = 4; // 额外参数: device, referer
+  string trace_id = 5;
+}
+
+message TrackEventResponse {
+  bool accepted = 1;
+}
+
+message GetDashboardStatsRequest {
+  // 时间范围
+  int64 start_time = 1; // Unix timestamp
+  int64 end_time = 2;
+}
+
+message GetDashboardStatsResponse {
+  int64 total_users = 1;
+  int64 active_users_today = 2;
+  int64 total_posts = 3;
+  int64 total_views = 4;
+  // 简单的趋势图数据
+  map<string, int64> trend_data = 5;
+}
+
+message GetContentScoreRequest {
+  int64 post_id = 1;
+}
+
+message GetContentScoreResponse {
+  int32 score = 1; // 0-100
+  repeated string suggestions = 2; // e.g. "Title too short", "Lack of images"
+}
