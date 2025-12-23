@@ -8,10 +8,12 @@ mod worker;
 use crate::ingestion::Ingestor;
 use crate::server::OracleServer;
 use crate::storage::duck::DuckStore;
+use crate::worker::AnalyticsWorker;
 use common::config::ConfigLoader;
 use common::logger;
 use common::metrics;
 use common::oracle::analysis_service_server::AnalysisServiceServer;
+use std::sync::Arc;
 use tonic::transport::Server;
 use tracing::info;
 
@@ -42,7 +44,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 注意：Ingestor 会自动启动后台 tokio 任务
     let ingestor = Ingestor::new(store.clone());
 
-    // 5. 启动 gRPC 服务
+    // 5. [新增] 启动后台 Worker
+    let worker = Arc::new(AnalyticsWorker::new(store.clone()));
+    tokio::spawn(async move {
+        worker.run().await;
+    });
+
+    // 6. 启动 gRPC 服务
     let addr = config
         .server
         .as_ref()

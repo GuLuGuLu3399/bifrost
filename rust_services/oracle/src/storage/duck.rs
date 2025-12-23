@@ -97,4 +97,15 @@ impl DuckStore {
         }
         Ok(result)
     }
+
+    /// 执行原始 SQL (用于 Worker 维护任务)
+    /// 支持 INSERT, DELETE, UPDATE 等 DDL/DML 操作
+    pub fn raw_execute(&self, sql: &str) -> Result<()> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| anyhow!("duckdb connection mutex poisoned"))?;
+        conn.execute_batch(sql)?;
+        Ok(())
+    }
 }
