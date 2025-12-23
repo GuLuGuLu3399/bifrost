@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
@@ -16,13 +17,25 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/lifecycle"
 	"github.com/gulugulu3399/bifrost/internal/pkg/messenger"
 	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
+	pkgmw "github.com/gulugulu3399/bifrost/internal/pkg/middleware"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/tracing"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
 
 var configFile = flag.String("f", "configs/beacon.yaml", "the config file")
 
 func main() {
+		// Metrics endpoint (Prometheus)
+		go func() {
+			mux := http.NewServeMux()
+			mux.Handle("/metrics", promhttp.Handler())
+			// best-effort: bind to localhost:9102 by default
+			if err := http.ListenAndServe("localhost:9102", mux); err != nil {
+				logger.Warn("metrics server stopped", logger.Err(err))
+			}
+		}()
 	flag.Parse()
 
 	sh := lifecycle.NewShutdown()
@@ -97,7 +110,7 @@ func main() {
 		EnableReflection: true,
 		EnableHealth:     true,
 		//TODO keepalive 这里先走默认零值（由 gRPC 自己使用默认策略）；后续可以从 config 补齐
-	}, zlog, nil, nil, nil)
+	}, zlog, nil, nil, nil, grpc.ChainUnaryInterceptor(pkgmw.MetricsUnaryServerInterceptor(cfg.App.Name)))
 	if err != nil {
 		logger.Fatal("Failed to init gRPC server", logger.Any("error", err))
 	}

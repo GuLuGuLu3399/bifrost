@@ -32,6 +32,11 @@ config = "0.15.19"
 # NATS
 async-nats = "0.45.0"
 
+# Metrics
+metrics = "0.21"
+metrics-exporter-prometheus = "0.14"
+hyper = { version = "0.14", features = ["full"] }
+
 [build-dependencies]
 # build.rs uses tonic_prost_build directly
 tonic-prost-build = "0.14.2"

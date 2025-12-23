@@ -5,6 +5,7 @@ mod server;
 
 use crate::server::GrpcServer;
 use common::config::{AppConfig, ConfigLoader, ServerConfig};
+use common::metrics;
 use common::forge::render_service_server::RenderServiceServer;
 use std::net::SocketAddr;
 use tonic::transport::Server;
@@ -23,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_cfg: &ServerConfig = config
         .server
         .as_ref()
-        .expect("server config missing");
+        .ok_or_else(|| anyhow::anyhow!("missing required config: server.addr"))?;
 
     // 2. 初始化 tracing
     let json = config
@@ -36,6 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!(addr = %server_cfg.addr, "forge starting");
 
+    // Start Prometheus metrics on default port for forge
+    metrics::init_prometheus("0.0.0.0:9103").await?;
+
     let addr: SocketAddr = server_cfg.addr.parse()?;
     let forge_service: GrpcServer = GrpcServer::new();
 
@@ -44,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3. 启动 Server
     Server::builder()
         .add_service(RenderServiceServer::new(forge_service))
-        .serve(addr)
+        .serve_with_shutdown(addr, common::lifecycle::shutdown_signal())
         .await?;
 
     Ok(())

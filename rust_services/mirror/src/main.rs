@@ -9,6 +9,7 @@ use crate::engine::SearchEngine;
 use crate::server::GrpcServer;
 use crate::worker::IndexWorker;
 use common::config::{AppConfig, ConfigLoader, ServerConfig};
+use common::metrics;
 use common::search::mirror_service_server::MirrorServiceServer;
 use std::sync::Arc;
 use tonic::transport::Server;
@@ -25,9 +26,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_cfg: &ServerConfig = config
         .server
         .as_ref()
-        .expect("Server config missing");
+        .ok_or_else(|| anyhow::anyhow!("missing required config: server.addr"))?;
 
-    let nats_cfg = config.nats.as_ref().expect("NATS config missing");
+    let nats_cfg = config
+        .nats
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("missing required config: nats.url"))?;
 
     // 2. 初始化 tracing（风格对齐 forge）
     let json = config
@@ -40,6 +44,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     common::logger::init_tracing("mirror", "dev", json)?;
 
     info!(addr = %server_cfg.addr, "mirror starting");
+
+    // Start Prometheus metrics for mirror
+    metrics::init_prometheus("0.0.0.0:9104").await?;
 
     // 3. 初始化核心搜索引擎
     let index_path = std::env::var("MIRROR_INDEX_PATH")
@@ -72,10 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Server::builder()
         .add_service(MirrorServiceServer::new(mirror_service))
-        .serve_with_shutdown(addr, async {
-            tokio::signal::ctrl_c().await.unwrap();
-            info!("Shutting down Mirror service...");
-        })
+        .serve_with_shutdown(addr, common::lifecycle::shutdown_signal())
         .await?;
 
     Ok(())

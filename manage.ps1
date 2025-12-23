@@ -47,7 +47,7 @@ function Write-Step([string]$Message) {
 }
 
 function Write-Info([string]$Message) {
-    Write-Host "  ℹ️  $Message" -ForegroundColor Blue
+    Write-Host "  !  $Message" -ForegroundColor Blue
 }
 
 function Write-Success([string]$Message) {

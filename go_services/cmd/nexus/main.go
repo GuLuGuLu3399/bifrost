@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"log"
 	"time"
 
@@ -29,9 +30,12 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/id"
 	"github.com/gulugulu3399/bifrost/internal/pkg/messenger"
 	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
+	pkgmw "github.com/gulugulu3399/bifrost/internal/pkg/middleware"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/tracing"
 	"github.com/gulugulu3399/bifrost/internal/pkg/security"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -48,6 +52,14 @@ func main() {
 	zlog := logger.NewZap(cfg.LoggerConfig(), cfg.App.Name, cfg.App.Env)
 	logger.SetGlobal(zlog)
 	defer func() { _ = logger.Sync() }()
+	// Metrics endpoint (Prometheus)
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe("localhost:9101", mux); err != nil {
+			logger.Warn("metrics server stopped", logger.Err(err))
+		}
+	}()
 
 	logger.Info("Starting Nexus Service",
 		logger.String("grpc_addr", cfg.Server.GRPCAddr),
@@ -168,7 +180,7 @@ func main() {
 		EnableReflection: true,
 		EnableHealth:     true,
 		//TODO keepalive/mTLS 后续可以从 config 补齐
-	}, zlog, jwtManager, publicMethods, adminMethods)
+	}, zlog, jwtManager, publicMethods, adminMethods, grpc.ChainUnaryInterceptor(pkgmw.MetricsUnaryServerInterceptor(cfg.App.Name)))
 	if err != nil {
 		logger.Fatal("Failed to init gRPC server", logger.Any("error", err))
 	}

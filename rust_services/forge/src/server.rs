@@ -32,6 +32,8 @@ impl RenderService for GrpcServer {
         &self,
         request: Request<RenderPreviewRequest>,
     ) -> Result<Response<RenderPreviewResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let req = request.into_inner();
         let engine = self.engine.clone();
 
@@ -54,8 +56,10 @@ impl RenderService for GrpcServer {
     // 2. 元数据
     async fn get_render_meta(
         &self,
-        _request: Request<GetRenderMetaRequest>,
+        request: Request<GetRenderMetaRequest>,
     ) -> Result<Response<GetRenderMetaResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         Ok(Response::new(GetRenderMetaResponse {
             version: "v3.2".into(),
             enabled_extensions: vec!["tables".into(), "tasklists".into(), "footnotes".into()],
@@ -64,6 +68,8 @@ impl RenderService for GrpcServer {
 
     // 3. 正式渲染 (Nexus 调用)
     async fn render(&self, request: Request<RenderRequest>) -> Result<Response<RenderResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let req = request.into_inner();
         let engine = self.engine.clone();
 

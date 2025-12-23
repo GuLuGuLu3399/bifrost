@@ -29,6 +29,8 @@ impl AnalysisService for OracleServer {
         &self,
         request: Request<TrackEventRequest>,
     ) -> Result<Response<TrackEventResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let req = request.into_inner();
 
         // 转换为内部 EventPayload
@@ -54,6 +56,8 @@ impl AnalysisService for OracleServer {
         &self,
         request: Request<GetDashboardStatsRequest>,
     ) -> Result<Response<GetDashboardStatsResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let req = request.into_inner();
 
         // 计算查询天数范围 (简单处理：用开始时间到现在的时间差，或者默认7天)
@@ -94,8 +98,10 @@ impl AnalysisService for OracleServer {
     // 3. 内容评分 (暂未实现算法，返回 Mock)
     async fn get_content_score(
         &self,
-        _request: Request<GetContentScoreRequest>,
+        request: Request<GetContentScoreRequest>,
     ) -> Result<Response<GetContentScoreResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         Ok(Response::new(GetContentScoreResponse {
             score: 88,
             suggestions: vec!["Good engagement".to_string()],

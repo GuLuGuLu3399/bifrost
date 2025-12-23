@@ -34,6 +34,8 @@ impl MirrorService for GrpcServer {
         request: Request<SearchRequest>,
     ) -> Result<Response<SearchResponse>, Status> {
         let start = Instant::now();
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let req = request.into_inner();
 
         // 1. 参数校验与默认值
@@ -89,6 +91,8 @@ impl MirrorService for GrpcServer {
         request: Request<SuggestRequest>,
     ) -> Result<Response<SuggestResponse>, Status> {
         let start = Instant::now();
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let _req = request.into_inner();
 
         // TODO: 使用 Tantivy 的 TermDictionary/FST 实现前缀匹配
@@ -108,6 +112,8 @@ impl MirrorService for GrpcServer {
         &self,
         request: Request<DebugIndexRequest>,
     ) -> Result<Response<DebugIndexResponse>, Status> {
+        let md = request.metadata().clone();
+        common::trace::set_parent_from_metadata(&md);
         let req = request.into_inner();
         let doc_id = req.doc_id;
 

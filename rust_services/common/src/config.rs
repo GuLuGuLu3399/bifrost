@@ -6,6 +6,7 @@ use serde::Deserialize;
 use config as config_crate;
 // 应用配置结构体
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct AppConfig {
     pub server: Option<ServerConfig>,
     pub log: Option<LogConfig>,
@@ -16,35 +17,41 @@ pub struct AppConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct ServerConfig {
     pub addr: String,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct LogConfig {
     pub level: Option<String>,
     pub format: Option<String>, // json / console
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct RedisConfig {
     pub dsn: String, // redis://:pass@127.0.0.1:6379/0
     pub max_connections: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct DatabaseConfig {
     pub dsn: String, // postgres://user:pass@localhost:5432/db
     pub max_connections: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct NatsConfig {
     pub url: String,
 }
 
 // [新增] OpenTelemetry 配置
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub struct OtelConfig {
     pub enabled: bool,
     pub endpoint: String, // e.g., "http://localhost:4317"
