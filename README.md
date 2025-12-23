@@ -14,6 +14,7 @@
 | [Rust Services README](./rust_services/README.md) | Rust 微服务构建 & 配置      |
 | [HTTP API 指南](./docs/HTTP_Guide.md)               | 接口交互规范与示例            |
 | [数据库架构](./migrations/readme.md)                   | PostgreSQL 表设计 & 关系图 |
+| [NATS 消息传递](./docs/NATS_MESSAGING_GUIDE.md)     | Fire-and-Forget 轻量级方案 |
 | [代码审计报告](./docs/code_audit_report.md)             | 质量评估与改进建议            |
 
 ---
@@ -56,10 +57,12 @@
     │  │                             │  + Worker      │    │+ Indexer    │
     │  │                             └────────────────┘    └─────────────┘
     │  │
-    │  │  ┌────────────────────────────────────┐
-    │  └─►│       Outbox 发件箱 (PostgreSQL)   │
-    │     │     (分布式事务可靠投递)            │
-    │     └────────────────────────────────────┘
+    │  │  Queue Groups 负载均衡：
+    │  │  - beacon_service  (缓存失效)
+    │  │  - mirror_service  (索引更新)
+    │  │  - 可扩展至其他服务
+    │  │
+    │  └─► NATS (Fire-and-Forget)
     │
     └────────────────────────────────┐
                                       │
@@ -79,7 +82,7 @@
 ### 🟡 数据维度：单体式
 
 - ✅ Nexus + Beacon 共享单一 PostgreSQL 数据库 → 强一致性
-- ✅ 避免分布式事务复杂性，使用**发件箱模式 (Outbox Pattern)**
+- ✅ 避免分布式事务复杂性，使用**NATS Fire-and-Forget 轻量级方案**
 - ✅ Redis 作为 Session/缓存层，非关键数据
 
 ### 🟡 代码维度：单体式
@@ -134,15 +137,14 @@ Frontend
   Nexus (写服务)
     │ [1] 写入 posts 表
     │ [2] 调用 Forge 渲染 Markdown → HTML
-    │ [3] 写入 raw_events 表（埋点）
-    │ [4] 发送 NATS 消息 (post.created)
-    │ [5] 写入 Outbox 表（确保可靠投递）
+    │ [3] 事务提交成功
+    │ [4] go func() 异步发送 NATS 消息 (post.created)
     ▼
- PostgreSQL + NATS
+ PostgreSQL 事务成功返回 + NATS 消息分发
     │
-    ├─► Beacon 订阅更新缓存
-    ├─► Mirror 订阅更新索引
-    └─► Oracle 订阅聚合统计
+    ├─► Beacon (beacon_service) 订阅 → 删除 Redis 缓存
+    ├─► Mirror (mirror_service) 订阅 → 更新全文索引
+    └─► Oracle (未来) 订阅 → 聚合分析
 ```
 
 ### 快读场景 (典型：查询文章列表)
@@ -480,23 +482,33 @@ rpc GetPost(GetPostRequest) returns (GetPostResponse) {
 }
 ```
 
-### 3️⃣ 分布式事务：发件箱模式
+### 3️⃣ 轻量级消息传递：NATS Fire-and-Forget
 
-避免分布式两阶段提交，使用**发件箱表 (Outbox) + 异步投递**：
+替代复杂的 Outbox 发件箱模式，采用更简洁的事件驱动架构。详见 [NATS 消息传递指南](./docs/NATS_MESSAGING_GUIDE.md)。
 
-```sql
--- Nexus 原子性：一个事务里
-BEGIN;
-  INSERT INTO posts (...) RETURNING id;
-  INSERT INTO outbox_events (topic, payload, status) 
-    VALUES ('post.created', json_payload, 'pending');
-COMMIT;
+**核心特点**：
 
--- Worker 异步投递
-SELECT * FROM outbox_events WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT 100;
--- → 发送到 NATS
--- → 更新 status = 'delivered'
+```go
+// Nexus 发送端（业务完成后异步发送，不等待）
+go func() {
+    err := msgr.Publish("content.post.created", payload)
+    if err != nil {
+        log.Warn("publish failed", err) // 只记日志，不影响业务
+    }
+}()
+
+// Beacon 消费端（使用 Queue Groups 自动负载均衡）
+msgr.Subscribe("content.>", "beacon_service", func(subject, data []byte) {
+    // 删除 Redis 缓存
+})
 ```
+
+**为什么适合 CMS？**
+
+- ✅ **代码简洁**：无需 Outbox 表、Relayer 协程、重试逻辑
+- ✅ **运维轻松**：NATS 开箱即用，无复杂配置
+- ✅ **易于扩展**：新增消费者（如 Audit 服务）只需一行代码，Nexus 无需改动
+- ✅ **宽松一致性**：事件丢失概率极低，即使丢失也只是缓存多保留几分钟
 
 ### 4️⃣ 高并发写入：Oracle 埋点服务
 

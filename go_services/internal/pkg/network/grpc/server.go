@@ -99,11 +99,11 @@ func NewServer(
 	// 注意：Tracing 通过 StatsHandler 集成，不需要单独的拦截器
 	serverOpts = append(serverOpts,
 		grpc.ChainUnaryInterceptor(
-			RecoveryInterceptor(l),             // 1. Panic 恢复
-			ServerContextInterceptor(),         // 2. Metadata -> Context (Phase 1 新增)
-			LoggingInterceptor(l),              // 3. 访问日志
+			RecoveryInterceptor(l),                                   // 1. Panic 恢复
+			ServerContextInterceptor(),                               // 2. Metadata -> Context (Phase 1 新增)
+			LoggingInterceptor(l),                                    // 3. 访问日志
 			AuthInterceptor(jwtManager, publicMethods, adminMethods), // 4. 鉴权
-			ErrorInterceptor(),                 // 5. 错误转换
+			ErrorInterceptor(),                                       // 5. 错误转换
 		),
 		// StatsHandler: OpenTelemetry Tracing 集成 (自动生成 Server Span)
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),

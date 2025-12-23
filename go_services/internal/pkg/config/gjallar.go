@@ -67,7 +67,7 @@ func DefaultConfig() *Config {
 			Nexus  grpc.ClientConfig "mapstructure:\"nexus\" yaml:\"nexus\""
 			Beacon grpc.ClientConfig "mapstructure:\"beacon\" yaml:\"beacon\""
 		}{
-			Nexus: grpc.ClientConfig{Addr: "localhost:9001", Timeout: 5 * time.Second},
+			Nexus:  grpc.ClientConfig{Addr: "localhost:9001", Timeout: 5 * time.Second},
 			Beacon: grpc.ClientConfig{Addr: "localhost:9002", Timeout: 5 * time.Second},
 		},
 	}
@@ -75,9 +75,10 @@ func DefaultConfig() *Config {
 
 // LoadGjallarConfig 从环境变量或配置文件加载。
 // 关键环境变量示例：
-//   BIFROST_RPC_NEXUS_ADDR=nexus:9001
-//   BIFROST_RPC_BEACON_ADDR=beacon:9002
-//   BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
+//
+//	BIFROST_RPC_NEXUS_ADDR=nexus:9001
+//	BIFROST_RPC_BEACON_ADDR=beacon:9002
+//	BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
 func LoadGjallarConfig() (*Config, error) {
 	loader := NewLoader(WithDefaults(map[string]any{
 		"app.name":                    "bifrost-gjallar",
@@ -92,10 +93,10 @@ func LoadGjallarConfig() (*Config, error) {
 		"http.idle_timeout":           "60s",
 		"http.timeout":                "5s",
 		// Provide defaults so Viper binds keys and env can override
-		"rpc.nexus.addr":              "localhost:9001",
-		"rpc.nexus.timeout":           "5s",
-		"rpc.beacon.addr":             "localhost:9002",
-		"rpc.beacon.timeout":          "5s",
+		"rpc.nexus.addr":     "localhost:9001",
+		"rpc.nexus.timeout":  "5s",
+		"rpc.beacon.addr":    "localhost:9002",
+		"rpc.beacon.timeout": "5s",
 	}))
 
 	cfg := DefaultConfig()

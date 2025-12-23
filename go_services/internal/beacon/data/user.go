@@ -38,13 +38,13 @@ func (r *userRepo) GetUser(ctx context.Context, userID int64) (*beaconv1.UserPro
 		}
 
 		return &beaconv1.UserProfile{
-		Id:        row.ID,
-		Username:  row.Username,
-		Nickname:  row.Nickname,
-		AvatarKey: row.AvatarKey.String,
-		Bio:       row.Bio.String,
-		PostCount: row.PostCount,
-		// 注意：RegisteredAt 字段在 proto 定义中不存在，已移除
+			Id:        row.ID,
+			Username:  row.Username,
+			Nickname:  row.Nickname,
+			AvatarKey: row.AvatarKey.String,
+			Bio:       row.Bio.String,
+			PostCount: row.PostCount,
+			// 注意：RegisteredAt 字段在 proto 定义中不存在，已移除
 		}, nil
 	})
 }

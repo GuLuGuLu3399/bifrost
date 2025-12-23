@@ -8,7 +8,7 @@
 
 ## 架构概述
 
-本架构专为 Go 与 Rust 微服务集群设计，采用清晰的 Snowflake ID 主键策略和发件箱模式处理分布式事务，摒弃了数据库触发器和存储过程。
+本架构专为 Go 与 Rust 微服务集群设计，采用清晰的 Snowflake ID 主键策略和轻量级 NATS 消息传递处理事件分发，摒弃了数据库触发器和存储过程。
 
 ## ER 核心关系图
 
@@ -59,13 +59,6 @@ erDiagram
         BIGINT post_id PK,FK
         VARCHAR type PK
     }
-    OUTBOX_EVENTS {
-        BIGINT id PK
-        VARCHAR topic
-        JSONB payload
-        VARCHAR status
-        VARCHAR locked_by
-    }
 
     USERS ||--o{ POSTS : "撰写"
     CATEGORIES ||--o{ POSTS : "分类"
@@ -73,7 +66,6 @@ erDiagram
     TAGS ||--o{ POST_TAGS : "归属"
     USERS ||--o{ COMMENTS : "发表"
     POSTS ||--o{ COMMENTS : "收到"
-    POSTS ||--o{ OUTBOX_EVENTS : "触发"
 ```
 
 ## 详细表结构说明

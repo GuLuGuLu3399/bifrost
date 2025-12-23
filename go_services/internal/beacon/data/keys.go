@@ -12,6 +12,7 @@ const (
 )
 
 func KeyPostDetail(slugOrID string) string { return fmt.Sprintf("beacon:post:%s", slugOrID) }
+func KeyPostList() string                  { return "beacon:posts:list" }
 func KeyUserProfile(userID int64) string   { return fmt.Sprintf("beacon:user:%d", userID) }
 func KeyCategoryList() string              { return "beacon:categories:all" }
 func KeyTagList() string                   { return "beacon:tags:popular" }

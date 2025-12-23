@@ -5,8 +5,8 @@ package main
 import (
 	"context"
 	"flag"
-	"net/http"
 	"log"
+	"net/http"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // PGX Driver for database/sql
@@ -29,8 +29,8 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/database"
 	"github.com/gulugulu3399/bifrost/internal/pkg/id"
 	"github.com/gulugulu3399/bifrost/internal/pkg/messenger"
-	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
 	pkgmw "github.com/gulugulu3399/bifrost/internal/pkg/middleware"
+	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/tracing"
 	"github.com/gulugulu3399/bifrost/internal/pkg/security"

@@ -30,9 +30,9 @@ type CommentEventPayload struct {
 
 // InteractionEventPayload 用户互动事件
 type InteractionEventPayload struct {
-	UserID   int64  `json:"user_id"`
-	PostID   int64  `json:"post_id"`
-	Type     string `json:"type"` // "like", "bookmark", "share"
+	UserID int64  `json:"user_id"`
+	PostID int64  `json:"post_id"`
+	Type   string `json:"type"` // "like", "bookmark", "share"
 }
 
 // 常见事件主题常量

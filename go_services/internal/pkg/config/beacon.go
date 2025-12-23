@@ -63,13 +63,13 @@ func (c *BeaconConfig) validate() error {
 
 func LoadBeacon(path string) (*BeaconConfig, error) {
 	l := NewLoader(WithDefaults(map[string]any{
-		"app.name":                    "bifrost-beacon",
-		"app.env":                     "dev",
-		"app.version":                 "1.0.0",
-		"logger.level":                "info",
-		"logger.format":               "json",
-		"observability.otlp_endpoint": "localhost:4317",
-		"server.grpc_addr":            ":9002",
+		"app.name":                         "bifrost-beacon",
+		"app.env":                          "dev",
+		"app.version":                      "1.0.0",
+		"logger.level":                     "info",
+		"logger.format":                    "json",
+		"observability.otlp_endpoint":      "localhost:4317",
+		"server.grpc_addr":                 ":9002",
 		"server.graceful_shutdown_timeout": "10s",
 		"data.database.max_idle_conns":     20,
 		"data.database.max_open_conns":     200,

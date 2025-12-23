@@ -73,22 +73,22 @@ func (c *NexusConfig) validate() error {
 // LoadNexus 从 YAML（或环境变量）加载 Nexus 配置。
 func LoadNexus(path string) (*NexusConfig, error) {
 	l := NewLoader(WithDefaults(map[string]any{
-		"app.name":                    "bifrost-nexus",
-		"app.env":                     "dev",
-		"app.version":                 "1.0.0",
-		"logger.level":                "info",
-		"logger.format":               "json",
-		"observability.otlp_endpoint": "localhost:4317",
-		"server.grpc_addr":            ":9001",
-		"snowflake_node":              int64(1),
-		"security.jwt_expiration":     "24h",
-		"data.database.driver":        "pgx",
+		"app.name":                         "bifrost-nexus",
+		"app.env":                          "dev",
+		"app.version":                      "1.0.0",
+		"logger.level":                     "info",
+		"logger.format":                    "json",
+		"observability.otlp_endpoint":      "localhost:4317",
+		"server.grpc_addr":                 ":9001",
+		"snowflake_node":                   int64(1),
+		"security.jwt_expiration":          "24h",
+		"data.database.driver":             "pgx",
 		"data.database.max_open_conns":     25,
 		"data.database.max_idle_conns":     25,
 		"data.database.conn_max_lifetime":  "5m",
 		"data.database.conn_max_idle_time": "5m",
 		"messenger.addr":                   "nats://127.0.0.1:4222",
-		"rpc.forge_addr":                    "",
+		"rpc.forge_addr":                   "",
 	}))
 
 	var cfg NexusConfig

@@ -16,8 +16,8 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/database"
 	"github.com/gulugulu3399/bifrost/internal/pkg/lifecycle"
 	"github.com/gulugulu3399/bifrost/internal/pkg/messenger"
-	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
 	pkgmw "github.com/gulugulu3399/bifrost/internal/pkg/middleware"
+	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/tracing"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -27,15 +27,15 @@ import (
 var configFile = flag.String("f", "configs/beacon.yaml", "the config file")
 
 func main() {
-		// Metrics endpoint (Prometheus)
-		go func() {
-			mux := http.NewServeMux()
-			mux.Handle("/metrics", promhttp.Handler())
-			// best-effort: bind to localhost:9102 by default
-			if err := http.ListenAndServe("localhost:9102", mux); err != nil {
-				logger.Warn("metrics server stopped", logger.Err(err))
-			}
-		}()
+	// Metrics endpoint (Prometheus)
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		// best-effort: bind to localhost:9102 by default
+		if err := http.ListenAndServe("localhost:9102", mux); err != nil {
+			logger.Warn("metrics server stopped", logger.Err(err))
+		}
+	}()
 	flag.Parse()
 
 	sh := lifecycle.NewShutdown()
