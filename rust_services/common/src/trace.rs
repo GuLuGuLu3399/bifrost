@@ -15,7 +15,24 @@ impl<'a> Extractor for MetadataExtractor<'a> {
     }
 
     fn keys(&self) -> Vec<&str> {
-        self.md.keys().map(|k| k.as_str()).collect()
+        // tonic 的 MetadataMap::keys() 返回 KeyRef，不同版本 API 不一致。
+        // Extractor trait 要求返回 Vec<&str>，因此这里把 key 转成 owned String，
+        // 再以 &'static str 的形式返回（用于一次性提取传播字段，数量很少）。
+        self.md
+            .keys()
+            .filter_map(|k| {
+                // KeyRef 转换为 &str
+                let key_str = match k {
+                    tonic::metadata::KeyRef::Ascii(name) => name.as_str(),
+                    tonic::metadata::KeyRef::Binary(_name) => {
+                        // Binary keys 通常不用于追踪头，跳过
+                        return None;
+                    }
+                };
+                let s = key_str.to_string();
+                Some(Box::leak(s.into_boxed_str()) as &'static str)
+            })
+            .collect()
     }
 }
 
@@ -24,5 +41,7 @@ pub fn set_parent_from_metadata(md: &MetadataMap) {
     let extractor = MetadataExtractor { md };
     let cx = global::get_text_map_propagator(|prop| prop.extract(&extractor));
     let span = Span::current();
-    span.set_parent(cx);
+
+    // set_parent 本身不会因为 metadata 缺失而失败；这里不需要 panic。
+    let _ = span.set_parent(cx);
 }

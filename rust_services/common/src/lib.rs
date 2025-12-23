@@ -45,6 +45,9 @@ pub mod error;
 pub mod logger;
 pub mod nats;
 pub mod otel;
+pub mod metrics;
+pub mod trace;
+pub mod lifecycle;
 
 pub use ctx::ContextData;
 pub use error::{CodeError, ErrorCode, ErrorResponse};

@@ -3,6 +3,7 @@
 mod ingestion;
 mod server;
 mod storage;
+mod worker;
 
 use crate::ingestion::Ingestor;
 use crate::server::OracleServer;
