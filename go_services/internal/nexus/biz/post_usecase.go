@@ -5,18 +5,22 @@ import (
 	"time"
 
 	contentv1 "github.com/gulugulu3399/bifrost/api/content/v1"
+	forgev1 "github.com/gulugulu3399/bifrost/api/content/v1/forge"
 )
 
 // PostUseCase 文章用例
 type PostUseCase struct {
 	repo PostRepo
 	tx   Transaction
+	// 可选的 Forge 渲染客户端（未配置则为 nil，跳过渲染）
+	forgeClient forgev1.RenderServiceClient
 }
 
-func NewPostUseCase(repo PostRepo, tx Transaction) *PostUseCase {
+func NewPostUseCase(repo PostRepo, tx Transaction, forgeClient forgev1.RenderServiceClient) *PostUseCase {
 	return &PostUseCase{
-		repo: repo,
-		tx:   tx,
+		repo:        repo,
+		tx:          tx,
+		forgeClient: forgeClient,
 	}
 }
 
@@ -83,6 +87,16 @@ func (uc *PostUseCase) CreatePost(ctx context.Context, input *CreatePostInput) (
 			return err
 		}
 		post.ID = postID
+
+		// 3.5 可选：同步调用 Forge 渲染（失败不阻断发布，降级为仅存 Markdown）
+		if uc.forgeClient != nil && post.RawMarkdown != "" {
+			renderCtx, cancel := context.WithTimeout(txCtx, 2*time.Second)
+			defer cancel()
+			resp, rerr := uc.forgeClient.Render(renderCtx, &forgev1.RenderRequest{RawMarkdown: post.RawMarkdown})
+			if rerr == nil && resp != nil {
+				_ = uc.repo.UpdateRenderedContent(txCtx, postID, resp.GetHtmlBody(), resp.GetTocJson(), resp.GetSummary())
+			}
+		}
 
 		output = &CreatePostOutput{PostID: postID, Version: post.Version}
 		return nil
@@ -158,6 +172,16 @@ func (uc *PostUseCase) UpdatePost(ctx context.Context, input *UpdatePostInput) (
 		// 3. 保存更新
 		if err := uc.repo.Update(txCtx, post); err != nil {
 			return err
+		}
+
+		// 3.5 可选：重新渲染（当 RawMarkdown 变更时）
+		if uc.forgeClient != nil && post.RawMarkdown != "" {
+			renderCtx, cancel := context.WithTimeout(txCtx, 2*time.Second)
+			defer cancel()
+			resp, rerr := uc.forgeClient.Render(renderCtx, &forgev1.RenderRequest{RawMarkdown: post.RawMarkdown})
+			if rerr == nil && resp != nil {
+				_ = uc.repo.UpdateRenderedContent(txCtx, post.ID, resp.GetHtmlBody(), resp.GetTocJson(), resp.GetSummary())
+			}
 		}
 
 		output = &UpdatePostOutput{NewVersion: post.Version}

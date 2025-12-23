@@ -11,6 +11,7 @@ import (
 
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 	"github.com/gulugulu3399/bifrost/internal/pkg/security"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
@@ -88,15 +89,24 @@ func NewServer(
 	)
 
 	// 3. 组装拦截器链
-	// 顺序：Recovery -> Context -> Logging -> Auth(可选) -> Error -> Handler
+	// 顺序：Recovery -> Context -> Logging -> Auth -> Error -> Handler
+	// 说明:
+	// - Recovery: 最外层，捕获 panic (必须第一个)
+	// - Context: 从 Metadata 还原 UserID/Token 到 Go Context
+	// - Logging: 记录请求日志 (需要 Context 中的字段)
+	// - Auth: 鉴权 (需要在业务逻辑之前)
+	// - Error: 错误转换 (最内层，最后执行)
+	// 注意：Tracing 通过 StatsHandler 集成，不需要单独的拦截器
 	serverOpts = append(serverOpts,
 		grpc.ChainUnaryInterceptor(
-			RecoveryInterceptor(l),
-			ContextInterceptor(),
-			LoggingInterceptor(l),
-			AuthInterceptor(jwtManager, publicMethods, adminMethods),
-			ErrorInterceptor(),
+			RecoveryInterceptor(l),             // 1. Panic 恢复
+			ServerContextInterceptor(),         // 2. Metadata -> Context (Phase 1 新增)
+			LoggingInterceptor(l),              // 3. 访问日志
+			AuthInterceptor(jwtManager, publicMethods, adminMethods), // 4. 鉴权
+			ErrorInterceptor(),                 // 5. 错误转换
 		),
+		// StatsHandler: OpenTelemetry Tracing 集成 (自动生成 Server Span)
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
 	// 4. 追加用户自定义选项

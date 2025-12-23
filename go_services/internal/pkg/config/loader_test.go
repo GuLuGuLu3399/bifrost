@@ -12,9 +12,13 @@ func TestLoader_LoadFile_EnvOverride(t *testing.T) {
 
 	// minimal valid config
 	yaml := []byte(`app:
-  grpc_port: ":9001"
-  security:
-    jwt_secret: "secret"
+  name: "bifrost-nexus"
+  env: dev
+  version: "1.0"
+server:
+  grpc_addr: ":9001"
+security:
+  jwt_secret: "secret"
 data:
   database:
     driver: "postgres"
@@ -27,16 +31,16 @@ logger:
 		t.Fatalf("write cfg: %v", err)
 	}
 
-	// override grpc port via env
-	_ = os.Setenv("BIFROST_APP_GRPC_PORT", ":9999")
-	t.Cleanup(func() { _ = os.Unsetenv("BIFROST_APP_GRPC_PORT") })
+	// override grpc addr via env
+	_ = os.Setenv("BIFROST_SERVER_GRPC_ADDR", ":9999")
+	t.Cleanup(func() { _ = os.Unsetenv("BIFROST_SERVER_GRPC_ADDR") })
 
 	cfg, err := LoadNexus(cfgPath)
 	if err != nil {
 		t.Fatalf("LoadNexus: %v", err)
 	}
-	if cfg.App.GRPCPort != ":9999" {
-		t.Fatalf("expected grpc_port overridden to :9999, got %q", cfg.App.GRPCPort)
+	if cfg.Server.GRPCAddr != ":9999" {
+		t.Fatalf("expected grpc_addr overridden to :9999, got %q", cfg.Server.GRPCAddr)
 	}
 }
 
@@ -46,7 +50,9 @@ func TestLoadNexus_ValidateRequired(t *testing.T) {
 
 	// missing jwt_secret
 	yaml := []byte(`app:
-  grpc_port: ":9001"
+  name: "bifrost-nexus"
+server:
+  grpc_addr: ":9001"
 data:
   database:
     driver: "postgres"

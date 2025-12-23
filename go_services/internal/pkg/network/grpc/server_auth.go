@@ -23,6 +23,11 @@ func AuthInterceptor(jwtManager *security.JWTManager, publicMethods map[string]s
 			return handler(ctx, req)
 		}
 
+		// 0.5 健康检查放行，避免探活请求被拦截
+		if info.FullMethod == "/grpc.health.v1.Health/Check" || info.FullMethod == "/grpc.health.v1.Health/Watch" {
+			return handler(ctx, req)
+		}
+
 		// 1. 白名单检查 (无需登录直接放行)
 		if _, ok := publicMethods[info.FullMethod]; ok {
 			return handler(ctx, req)

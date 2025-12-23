@@ -1,401 +1,254 @@
-<#
+﻿<#
 .SYNOPSIS
-    Bifrost CMS v3.2 - Monorepo Master Control Script
-    (修复了 missing google/api/annotations.proto 问题)
+  Bifrost 运维脚本 (精简版)
+.DESCRIPTION
+  提供核心运维命令：proto-lint、proto-gen、build-go、format、clean
+  使用 GitHub 风格图标和中文界面
 #>
 
+[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [string]$Command = "help",
-
-    [Parameter(Position = 1)]
-    [string]$Name = "",
-
-    [string]$ComposeFile = "deploy/docker-compose.yml"
+    [ValidateSet('help', 'proto-lint', 'proto-gen', 'build-go', 'format', 'clean')]
+    [string]$Command = 'help'
 )
 
-# --- 配置变量 ---
-$GoDir = "go_services"
-$RustDir = "rust_services"
-$AppsDir = "apps"
-$ProtoDir = "api"
-$BinDir = "bin"
-$ThirdPartyDir = "third_party" # 存放 Google 协议文件的目录
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
-$ErrorActionPreference = "Continue"
+# 路径定义
+$RootPath = $PSScriptRoot
+$GoDir = Join-Path $RootPath 'go_services'
+$RustDir = Join-Path $RootPath 'rust_services'
+$BinDir = Join-Path $RootPath 'bin'
 
-# --- 辅助函数 ---
+# 辅助函数
+function Show-Help {
+    Write-Host ''
+    Write-Host "┌─────────────────────────────────────────────┐" -ForegroundColor Cyan
+    Write-Host "│  🚀 Bifrost 运维脚本 (精简版)              │" -ForegroundColor Cyan
+    Write-Host "└─────────────────────────────────────────────┘" -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host "🔧 可用命令:" -ForegroundColor Green
+    Write-Host "  proto-lint    🔍 检查 Proto 文件规范"
+    Write-Host "  proto-gen     📡 生成 Proto 代码 (Protobuf + gRPC + Gateway)"
+    Write-Host "  build-go      ⚙️  构建所有 Go 服务二进制文件"
+    Write-Host "  format        ✨ 格式化 Go/Rust 代码"
+    Write-Host "  clean         🧹 清理构建产物"
+    Write-Host ''
+    Write-Host "📋 使用示例:" -ForegroundColor Yellow
+    Write-Host "  .\manage.ps1 proto-gen"
+    Write-Host "  .\manage.ps1 build-go"
+    Write-Host ''
+}
 
-function Write-Header ($Message) { Write-Host -ForegroundColor Cyan "`n>> $Message" }
-function Write-Success ($Message) { Write-Host -ForegroundColor Green $Message }
-function Write-ErrorMsg ($Message) { Write-Host -ForegroundColor Red "Error: $Message" }
-function Test-Command ($Cmd) { return (Get-Command $Cmd -ErrorAction SilentlyContinue) }
+function Write-Step([string]$Message) {
+    Write-Host "  ➡️  $Message" -ForegroundColor Magenta
+}
 
-function Exec {
-    param([scriptblock]$ScriptBlock)
-    & $ScriptBlock
-    if ($LASTEXITCODE -ne 0) {
-        Write-ErrorMsg "Command failed with exit code $LASTEXITCODE"
-        exit $LASTEXITCODE
+function Write-Info([string]$Message) {
+    Write-Host "  ℹ️  $Message" -ForegroundColor Blue
+}
+
+function Write-Success([string]$Message) {
+    Write-Host "  ✅ $Message" -ForegroundColor Green
+}
+
+function Write-ErrorMsg([string]$Message) {
+    Write-Host "  ❌ $Message" -ForegroundColor Red
+}
+
+function Exec([scriptblock]$Block, [string]$ErrMsg = '命令执行失败') {
+    try { 
+        & $Block
+        if ($LASTEXITCODE -ne 0) { 
+            throw "$ErrMsg (退出码: $LASTEXITCODE)" 
+        }
+    }
+    catch { 
+        Write-ErrorMsg $_.Exception.Message
+        exit 1 
     }
 }
 
-# 自动下载 Google API 依赖
-function Ensure-GoogleApis {
-    $TargetDir = "$ThirdPartyDir/google/api"
-    if (-not (Test-Path $TargetDir)) {
-        New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+function Exec-In([string]$Path, [scriptblock]$Block) {
+    if (-not (Test-Path $Path)) { 
+        Write-ErrorMsg "目录不存在: $Path"
+        exit 1 
     }
-
-    $Files = @("annotations.proto", "http.proto")
-    $BaseUrl = "https://raw.githubusercontent.com/googleapis/googleapis/master/google/api"
-
-    foreach ($File in $Files) {
-        $LocalPath = "$TargetDir/$File"
-        if (-not (Test-Path $LocalPath)) {
-            Write-Host "Downloading dependency: $File ..."
-            try {
-                Invoke-WebRequest -Uri "$BaseUrl/$File" -OutFile $LocalPath
-            }
-            catch {
-                Write-ErrorMsg "Failed to download $File. Please check your network."
-                exit 1
-            }
-        }
+    Write-Host "  📁 进入目录: $(Split-Path -Leaf $Path)" -ForegroundColor Gray
+    Push-Location $Path
+    try { 
+        Exec $Block 
+    }
+    finally { 
+        Pop-Location 
     }
 }
 
-# --- 任务逻辑 ---
-
-switch ($Command.ToLower()) {
-
-    "help" {
-        Write-Host ""
-        Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-        Write-Host "  Bifrost CMS v3.2 - Master Control Script" -ForegroundColor Cyan
-        Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "Proto & Gateway Commands:" -ForegroundColor Green
-        Write-Host "  proto-gen     | 生成 Proto 代码 (protobuf + gRPC + gRPC Gateway)"
-        Write-Host "  proto-lint    | 检查 Proto 文件规范"
-        Write-Host "  gateway-test  | 测试 gRPC Gateway 网关"
-        Write-Host ""
-        Write-Host "Service Commands:" -ForegroundColor Green
-        Write-Host "  run-nexus     | 启动 Nexus 微服务"
-        Write-Host "  run-beacon    | 启动 Beacon 微服务"
-        Write-Host "  run-gjallar   | 启动 Gjallar 网关"
-        Write-Host ""
-        Write-Host "Build Commands:" -ForegroundColor Green
-        Write-Host "  build-go      | 构建所有 Go 服务"
-        Write-Host "  build-rust    | 构建所有 Rust 服务"
-        Write-Host ""
-        Write-Host "Infrastructure Commands:" -ForegroundColor Green
-        Write-Host "  up            | 启动 Docker 基础设施"
-        Write-Host "  down          | 停止 Docker 基础设施"
-        Write-Host "  logs          | 查看服务日志"
-        Write-Host "  ps            | 列出运行中的容器"
-        Write-Host ""
-        Write-Host "Database Commands:" -ForegroundColor Green
-        Write-Host "  migrate-up    | 执行数据库迁移"
-        Write-Host "  migrate-new   | 创建新迁移 (需要 -Name 参数)"
-        Write-Host "  db-connect    | 连接到数据库"
-        Write-Host ""
-        Write-Host "Utility Commands:" -ForegroundColor Green
-        Write-Host "  init          | 初始化项目"
-        Write-Host "  format        | 格式化代码"
-        Write-Host "  clean         | 清理构建产物"
-        Write-Host "  help          | 显示此帮助信息"
-        Write-Host ""
-        Write-Host "Examples:" -ForegroundColor Yellow
-        Write-Host "  .\manage.ps1 proto-gen"
-        Write-Host "  .\manage.ps1 run-nexus"
-        Write-Host "  .\manage.ps1 build-go"
-        Write-Host "  .\manage.ps1 migrate-new -Name create_users_table"
-        Write-Host ""
+# 主逻辑
+switch ($Command) {
+    'help' { 
+        Show-Help
+        break 
     }
 
-    "init" {
-        Write-Header "[Init] Setting up Go modules..."
-        Push-Location $GoDir; Exec { go mod tidy }; Pop-Location
-        Write-Header "[Init] Setting up Rust workspace..."
-        Push-Location $RustDir; Exec { cargo check }; Pop-Location
-        Write-Success "Done."
-    }
-
-    # ==============================================================================
-    # Proto generation (Protobuf + gRPC + gRPC Gateway)
-    # ==============================================================================
-    "proto-gen" {
-        Write-Header "[Proto] Generate code (Protobuf + gRPC + gRPC Gateway)"
-        
-        # Check if buf is installed
-        if (Test-Command buf) {
-            Write-Host "OK buf installed" -ForegroundColor Green
-            Write-Header "[Proto] Running buf generate..."
-            Exec { buf generate }
-            Write-Success "OK Proto code generated!"
-            Write-Host ""
-            Write-Host "Generated files:" -ForegroundColor Cyan
-            Write-Host "  * *.pb.go          (Protobuf data structures)" -ForegroundColor Gray
-            Write-Host "  * *_grpc.pb.go     (gRPC service definitions)" -ForegroundColor Gray
-            Write-Host "  * *.pb.gw.go       (gRPC Gateway handlers)" -ForegroundColor Gray
-            Write-Host ""
-        }
-        else {
-            Write-ErrorMsg "buf not installed!"
-            Write-Host "Install buf: go install github.com/bufbuild/buf/cmd/buf@latest" -ForegroundColor Yellow
+    'proto-lint' {
+        Write-Host "`n🔍 检查 Proto 文件规范" -ForegroundColor Cyan
+    
+        if (-not (Get-Command buf -ErrorAction SilentlyContinue)) {
+            Write-ErrorMsg "buf 未安装"
+            Write-Host "  📥 安装命令: go install github.com/bufbuild/buf/cmd/buf@latest" -ForegroundColor Yellow
             exit 1
         }
+    
+        Exec { buf lint }
+        Write-Success "Proto 文件规范检查通过"
+        break
     }
 
-    "proto-lint" {
-        Write-Header "[Proto] Check Proto file standards..."
-        
-        if (Test-Command buf) {
-            Exec { buf lint }
-            Write-Success "OK Proto files passed checks!"
-        }
-        else {
-            Write-ErrorMsg "buf not installed!"
-            Write-Host "Install buf: go install github.com/bufbuild/buf/cmd/buf@latest" -ForegroundColor Yellow
-            exit 1
-        }
-    }
-
-    # Backward compatibility with old proto command
-    "proto" {
-        Write-Header "[Proto] 'proto' command is deprecated, use 'proto-gen' instead"
-        & $PSCommandPath "proto-gen"
-    }
-
-    # ==============================================================================
-    # gRPC Gateway Tests
-    # ==============================================================================
-    "gateway-test" {
-        Write-Header "[Gateway] Testing gRPC Gateway..."
-        
-        # Check if gateway is running
-        try {
-            $response = Invoke-WebRequest -Uri "http://localhost:8080/v1/posts" -UseBasicParsing -ErrorAction Stop -TimeoutSec 2
-            Write-Success "OK Gateway responded (HTTP $($response.StatusCode))"
-        }
-        catch {
-            Write-ErrorMsg "Gateway did not respond. Make sure services are running:"
-            Write-Host ""
-            Write-Host "Startup steps:" -ForegroundColor Yellow
-            Write-Host "  1. Terminal 1: .\manage.ps1 run-beacon" -ForegroundColor Gray
-            Write-Host "  2. Terminal 2: .\manage.ps1 run-nexus" -ForegroundColor Gray
-            Write-Host "  3. Terminal 3: .\manage.ps1 run-gjallar" -ForegroundColor Gray
-            Write-Host ""
-            Write-Host "Then retry: .\manage.ps1 gateway-test" -ForegroundColor Gray
-            Write-Host ""
+    'proto-gen' {
+        Write-Host "`n📡 生成 Proto 代码" -ForegroundColor Cyan
+    
+        if (-not (Get-Command buf -ErrorAction SilentlyContinue)) {
+            Write-ErrorMsg "buf 未安装"
+            Write-Host "  📥 安装命令: go install github.com/bufbuild/buf/cmd/buf@latest" -ForegroundColor Yellow
             exit 1
         }
 
-        Write-Header "[Gateway] Running full tests..."
-        
-        $BaseURL = "http://localhost:8080"
-        $TestsPassed = 0
-        $TestsFailed = 0
-
-        # Test function
-        function Test-Endpoint {
-            param(
-                [string]$Method,
-                [string]$Endpoint,
-                [string]$Body,
-                [int]$ExpectedCode
-            )
-            
-            Write-Host -NoNewline "  CHECK $Method $Endpoint ... "
-            
-            try {
-                $params = @{
-                    Uri             = "$BaseURL$Endpoint"
-                    Method          = $Method
-                    Headers         = @{"Content-Type" = "application/json" }
-                    UseBasicParsing = $true
-                    TimeoutSec      = 5
-                }
-                
-                if ($Body) {
-                    $params["Body"] = $Body
-                }
-                
-                $response = Invoke-WebRequest @params
-                $httpCode = $response.StatusCode
-                
-                if ($httpCode -eq $ExpectedCode) {
-                    Write-Host "OK HTTP $httpCode" -ForegroundColor Green
-                    return $true
-                }
-                else {
-                    Write-Host "FAIL HTTP $httpCode (expected $ExpectedCode)" -ForegroundColor Red
-                    return $false
-                }
+        # 检查并安装必要的插件
+        Write-Step "检查 protoc 插件..."
+        $plugins = @(
+            @{name = 'protoc-gen-go'; pkg = 'google.golang.org/protobuf/cmd/protoc-gen-go@latest' },
+            @{name = 'protoc-gen-go-grpc'; pkg = 'google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest' },
+            @{name = 'protoc-gen-grpc-gateway'; pkg = 'github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest' }
+        )
+    
+        foreach ($plugin in $plugins) {
+            if (-not (Get-Command $plugin.name -ErrorAction SilentlyContinue)) {
+                Write-Host "  📥 安装 $($plugin.name)..." -ForegroundColor Yellow
+                Exec { go install $plugin.pkg }
+                Write-Success "$($plugin.name) 安装完成"
             }
-            catch {
-                Write-Host "FAIL Error: $($_.Exception.Message)" -ForegroundColor Red
-                return $false
+            else {
+                Write-Host "  ✅ $($plugin.name) 已安装" -ForegroundColor Green
             }
         }
 
-        # Test Beacon service (read)
+        # 更新依赖
+        Write-Step "更新 Proto 依赖..."
+        Exec { buf dep update }
+    
+        # 生成代码
+        Write-Step "生成 Proto 代码..."
+        Exec { buf generate }
+    
+        # 清理不需要的 Gateway 文件
+        Write-Step "清理 gRPC-only 服务的 HTTP 网关文件..."
+        $grpcOnlyFiles = @(
+            'go_services/api/content/v1/forge/forge.pb.gw.go',
+            'go_services/api/content/v1/oracle/oracle.pb.gw.go',
+            'go_services/api/search/v1/mirror.pb.gw.go'
+        )
+    
+        $deletedCount = 0
+        foreach ($file in $grpcOnlyFiles) {
+            $fullPath = Join-Path $RootPath $file
+            if (Test-Path $fullPath) { 
+                Remove-Item $fullPath -Force
+                Write-Host "  🗑️  已删除: $file" -ForegroundColor Gray
+                $deletedCount++
+            }
+        }
+        if ($deletedCount -gt 0) {
+            Write-Info "已删除 $deletedCount 个 gRPC-only 网关文件"
+        }
+    
+        Write-Success "Proto 代码生成完成"
         Write-Host ""
-        Write-Host "Testing Beacon service (read):" -ForegroundColor Cyan
-        if (Test-Endpoint -Method "GET" -Endpoint "/v1/posts" -ExpectedCode 200) { $TestsPassed++ } else { $TestsFailed++ }
-        if (Test-Endpoint -Method "GET" -Endpoint "/v1/categories" -ExpectedCode 200) { $TestsPassed++ } else { $TestsFailed++ }
-        if (Test-Endpoint -Method "GET" -Endpoint "/v1/tags" -ExpectedCode 200) { $TestsPassed++ } else { $TestsFailed++ }
+        Write-Host "📁 生成的文件位置:" -ForegroundColor Cyan
+        Write-Host "  go_services/api/" -ForegroundColor Gray
+        break
+    }
 
-        # Test Nexus service (write)
-        Write-Host ""
-        Write-Host "✍️  Nexus 服务测试（写服务）:" -ForegroundColor Cyan
-        
-        $registerBody = @{
-            username = "testuser"
-            email    = "test@example.com"
-            password = "password123"
-            nickname = "Test User"
-        } | ConvertTo-Json
-        
-        if (Test-Endpoint -Method "POST" -Endpoint "/v1/auth/register" -Body $registerBody -ExpectedCode 200) { $TestsPassed++ } else { $TestsFailed++ }
+    'build-go' {
+        Write-Host "`n⚙️  构建 Go 服务" -ForegroundColor Cyan
+    
+        if (-not (Test-Path $BinDir)) { 
+            New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+            Write-Info "创建输出目录: $BinDir"
+        }
+    
+        Exec-In $GoDir {
+            $OutBase = Join-Path '..' 'bin'
+      
+            Write-Step "构建 nexus..."
+            go build -o (Join-Path $OutBase 'nexus.exe') cmd/nexus/main.go
+            Write-Info "  nexus.exe 已生成"
+      
+            Write-Step "构建 beacon..."
+            go build -o (Join-Path $OutBase 'beacon.exe') cmd/beacon/main.go
+            Write-Info "  beacon.exe 已生成"
+      
+            Write-Step "构建 gjallar..."
+            go build -o (Join-Path $OutBase 'gjallar.exe') cmd/gjallar/main.go
+            Write-Info "  gjallar.exe 已生成"
+        }
+    
+        Write-Success "所有 Go 服务构建完成"
+        Write-Host "  📁 输出目录: $BinDir" -ForegroundColor Gray
+        break
+    }
 
-        # 总结
-        Write-Host ""
-        Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-        Write-Host "测试结果: 通过 $TestsPassed, 失败 $TestsFailed" -ForegroundColor Cyan
-        Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-        Write-Host ""
-        
-        if ($TestsFailed -eq 0) {
-            Write-Success "✅ 所有测试通过！gRPC Gateway 正常工作。"
+    'format' {
+        Write-Host "`n✨ 格式化代码" -ForegroundColor Cyan
+    
+        if (Get-Command gofmt -ErrorAction SilentlyContinue) {
+            Write-Step "格式化 Go 代码..."
+            Exec-In $GoDir { gofmt -w . }
+            Write-Success "Go 代码格式化完成"
         }
         else {
-            Write-ErrorMsg "⚠️  部分测试失败。请检查网关和微服务。"
+            Write-ErrorMsg "gofmt 未找到，跳过 Go 代码格式化"
         }
-
-        # ==============================================================================
-        # 🐳 基础设施
-        # ==============================================================================
-        "up" {
-            if (-not (Test-Path $ComposeFile)) { Write-ErrorMsg "$ComposeFile not found."; exit 1 }
-            Write-Header "[Infra] Starting services..."
-            Exec { docker-compose -f $ComposeFile up -d }
-            Write-Success "Infrastructure is running!"
+    
+        if (Get-Command cargo -ErrorAction SilentlyContinue) {
+            Write-Step "格式化 Rust 代码..."
+            Exec-In $RustDir { cargo fmt }
+            Write-Success "Rust 代码格式化完成"
         }
+        else {
+            Write-ErrorMsg "cargo 未找到，跳过 Rust 代码格式化"
+        }
+    
+        Write-Success "所有代码格式化完成"
+        break
+    }
 
-        "down" {
-            if (Test-Path $ComposeFile) {
-                Write-Header "[Infra] Stopping services..."
-                Exec { docker-compose -f $ComposeFile down }
+    'clean' {
+        Write-Host "`n🧹 清理构建产物" -ForegroundColor Cyan
+    
+        $items = @(
+            @{path = $BinDir; desc = "二进制文件目录" },
+            @{path = "$GoDir/bin"; desc = "Go 编译缓存" },
+            @{path = "$RustDir/target"; desc = "Rust 编译缓存" }
+        )
+    
+        $cleanedCount = 0
+        foreach ($item in $items) {
+            if (Test-Path $item.path) { 
+                Remove-Item -Recurse -Force $item.path
+                Write-Host "  🗑️  已清理: $($item.desc)" -ForegroundColor Gray
+                $cleanedCount++
             }
         }
-
-        "logs" { Exec { docker-compose -f $ComposeFile logs -f } }
-        "ps" { docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" }
-
-        # ==============================================================================
-        # 🚀 Go 服务
-        # ==============================================================================
-        "run-nexus" { Write-Header "[Go] Nexus"; Push-Location $GoDir; Exec { go run cmd/nexus/main.go -config configs/nexus.yaml }; Pop-Location }
-        "run-beacon" { Write-Header "[Go] Beacon"; Push-Location $GoDir; Exec { go run cmd/beacon/main.go -f configs/beacon.yaml }; Pop-Location }
-        "run-gjallar" { Write-Header "[Go] Gjallar Gateway"; Push-Location $GoDir; Exec { go run cmd/gjallar/main.go }; Pop-Location }
-
-        "build-go" {
-            Write-Header "[Go] Building..."
-            if (-not (Test-Path $BinDir)) { New-Item -ItemType Directory -Force -Path $BinDir | Out-Null }
-            Push-Location $GoDir
-            Exec { go build -o ../$BinDir/nexus.exe cmd/nexus/main.go }
-            Exec { go build -o ../$BinDir/beacon.exe cmd/beacon/main.go }
-            Exec { go build -o ../$BinDir/gjallar.exe cmd/gjallar/main.go }
-            Pop-Location
-            Write-Success "Built in ./$BinDir/"
+    
+        if ($cleanedCount -eq 0) {
+            Write-Info "没有需要清理的文件"
         }
-
-        # ==============================================================================
-        # 🦀 Rust 服务
-        # ==============================================================================
-        "run-forge" { Write-Header "[Rust] Forge"; Push-Location $RustDir; Exec { cargo run --bin forge }; Pop-Location }
-        "run-mirror" { Write-Header "[Rust] Mirror"; Push-Location $RustDir; Exec { cargo run --bin mirror }; Pop-Location }
-        "build-rust" { Write-Header "[Rust] Building..."; Push-Location $RustDir; Exec { cargo build --release }; Pop-Location }
-
-        # ==============================================================================
-        # 🗄️ 数据库
-        # ==============================================================================
-        "migrate-up" {
-            Write-Header "[DB] Migrating Up..."
-            $DBUrl = "postgres://admin:secret@localhost:5432/bifrost?sslmode=disable"
-            if (Test-Command migrate) { Exec { migrate -path migrations -database $DBUrl up } }
-            elseif (Test-Command dbmate) { Exec { dbmate -u $DBUrl -d migrations up } }
-            else { Write-ErrorMsg "Install migrate or dbmate first." }
+        else {
+            Write-Success "清理完成，已清理 $cleanedCount 个目录"
         }
-
-        "migrate-new" {
-            if (-not $Name) { Write-ErrorMsg "Usage: .\manage.ps1 migrate-new -Name xxx"; exit 1 }
-            Write-Header "[DB] New Migration: $Name"
-            if (Test-Command migrate) { Exec { migrate create -ext sql -dir migrations -seq $Name } }
-            elseif (Test-Command dbmate) { Exec { dbmate -d migrations new $Name } }
-        }
-
-        # ==============================================================================
-        # 🧹 杂项
-        # ==============================================================================
-        "clean" {
-            Write-Header "[Clean] Artifacts..."
-            if (Test-Path $BinDir) { Remove-Item -Recurse -Force $BinDir }
-            if (Test-Path "$GoDir/bin") { Remove-Item -Recurse -Force "$GoDir/bin" }
-            if (Test-Path "$RustDir/target") { Push-Location $RustDir; cargo clean; Pop-Location }
-            if (Test-Path $ThirdPartyDir) { Remove-Item -Recurse -Force $ThirdPartyDir }
-            Write-Success "Cleaned."
-        }
-
-        "format" {
-            Push-Location $GoDir; gofmt -w .; Pop-Location
-            Push-Location $RustDir; cargo fmt; Pop-Location
-        }
-
-        "db-connect" {
-            if (Test-Command psql) { & psql postgres://admin:secret@localhost:5432/bifrost }
-            else { Write-ErrorMsg "psql not found." }
-        }
-
-        # ==============================================================================
-        # ⚡ 快捷启动命令
-        # ==============================================================================
-        "dev" {
-            Write-Header "⚡ 开发模式快速启动"
-            Write-Host ""
-            Write-Host "启动步骤:" -ForegroundColor Yellow
-            Write-Host "  1️⃣  Terminal 1: .\manage.ps1 run-beacon" -ForegroundColor Cyan
-            Write-Host "  2️⃣  Terminal 2: .\manage.ps1 run-nexus" -ForegroundColor Cyan
-            Write-Host "  3️⃣  Terminal 3: .\manage.ps1 run-gjallar" -ForegroundColor Cyan
-            Write-Host "  4️⃣  Terminal 4: .\manage.ps1 gateway-test" -ForegroundColor Cyan
-            Write-Host ""
-            Write-Host "或者快速启动第一个终端:" -ForegroundColor Yellow
-            Write-Host "  .\manage.ps1 run-beacon" -ForegroundColor Gray
-            Write-Host ""
-        }
-
-        "quick-start" {
-            Write-Header "🚀 快速开始 (本地开发)"
-            Write-Host ""
-        
-            # 1. 生成 Proto 代码
-            Write-Header "[1/4] 生成 Proto 代码..."
-            & $PSCommandPath "proto-gen"
-        
-            Write-Host ""
-            Write-Host "✅ Proto 代码生成完成！" -ForegroundColor Green
-            Write-Host ""
-            Write-Host "接下来请在三个不同的终端中运行:" -ForegroundColor Yellow
-            Write-Host "  Terminal 1: .\manage.ps1 run-beacon" -ForegroundColor Cyan
-            Write-Host "  Terminal 2: .\manage.ps1 run-nexus" -ForegroundColor Cyan
-            Write-Host "  Terminal 3: .\manage.ps1 run-gjallar" -ForegroundColor Cyan
-            Write-Host ""
-            Write-Host "然后测试网关:" -ForegroundColor Yellow
-            Write-Host "  .\manage.ps1 gateway-test" -ForegroundColor Cyan
-            Write-Host ""
-        }
-
-        default { Write-ErrorMsg "Unknown command: $Command" }
+        break
     }
+}

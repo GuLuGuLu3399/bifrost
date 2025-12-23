@@ -22,19 +22,6 @@ type Tag struct {
 }
 
 // ===========================================
-// Outbox Event
-// ===========================================
-
-const (
-	OutboxTopicTagDeleted = "tag.deleted"
-)
-
-type TagEventPayload struct {
-	TagID int64  `json:"tag_id"`
-	Slug  string `json:"slug"`
-}
-
-// ===========================================
 // 仓储接口 (Repository Interface)
 // ===========================================
 

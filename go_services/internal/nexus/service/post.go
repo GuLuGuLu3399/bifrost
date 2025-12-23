@@ -138,29 +138,7 @@ func (s *PostService) UpdatePost(ctx context.Context, req *nexusv1.UpdatePostReq
 }
 
 // UpdatePostRenderedContent 更新渲染后的内容 (内部接口)
-func (s *PostService) UpdatePostRenderedContent(ctx context.Context, req *nexusv1.UpdatePostRenderedContentRequest) (*nexusv1.UpdatePostRenderedContentResponse, error) {
-	ctx, cancel := context.WithTimeout(ctx, postWriteTimeout)
-	defer cancel()
-
-	if req.GetPostId() == 0 {
-		return nil, xerr.New(xerr.CodeBadRequest, "post_id is required")
-	}
-
-	err := s.postUC.UpdateRenderedContent(
-		ctx,
-		req.GetPostId(),
-		req.GetHtmlBody(),
-		req.GetTocJson(),
-		req.GetSummary(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &nexusv1.UpdatePostRenderedContentResponse{
-		Success: true,
-	}, nil
-}
+// 注：UpdatePostRenderedContent 内部接口已移除，改为在 UseCase 中调用 Forge 渲染并通过 Repo 更新渲染内容。
 
 // DeletePost 删除文章
 func (s *PostService) DeletePost(ctx context.Context, req *nexusv1.DeletePostRequest) (*nexusv1.DeletePostResponse, error) {

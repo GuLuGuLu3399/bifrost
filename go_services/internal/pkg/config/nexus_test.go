@@ -11,10 +11,13 @@ func TestLoadNexus_Validate(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "nexus.yaml")
 	content := `app:
-  grpc_port: ":9001"
-  snowflake_node: 1
-  security:
-    jwt_secret: "secret"
+  name: "bifrost-nexus"
+  env: dev
+  version: "1.0"
+server:
+  grpc_addr: ":9001"
+security:
+  jwt_secret: "secret"
 data:
   database:
     driver: "postgres"
@@ -29,15 +32,18 @@ data:
 		t.Fatalf("LoadNexus failed: %v", err)
 	}
 
-	if cfg.App.GRPCPort == "" {
-		t.Fatalf("expected grpc port to be set")
+	if cfg.Server.GRPCAddr == "" {
+		t.Fatalf("expected grpc addr to be set")
 	}
 
 	// Missing JWT secret should cause validation error
 	bad := filepath.Join(dir, "bad.yaml")
 	badContent := `app:
-  grpc_port: ":9001"
-  snowflake_node: 1
+  name: "bifrost-nexus"
+  env: dev
+  version: "1.0"
+server:
+  grpc_addr: ":9001"
 data:
   database:
     driver: "postgres"

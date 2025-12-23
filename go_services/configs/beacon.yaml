@@ -1,73 +1,36 @@
-# Beacon (Read Service) 配置文件
+# Beacon (Read Service) 统一配置
 
 app:
-  name: beacon
+  name: bifrost-beacon
   version: 1.0.0
   env: dev
-  grpc_port: ":9002"  # Beacon gRPC 端口
-  
-  metrics:
-    enable: true
-    http_addr: ":8082"  # Prometheus metrics 端口
-    namespace: bifrost
-  
-  tls:
-    enabled: false
-    cert_file: ""
-    key_file: ""
-    ca_file: ""
-  
-  observability:
-    jaeger_collector: ""
-    otlp_collector: ""
-  
-  security:
-    jwt_secret: "your-secret-key-change-in-production"
-    jwt_expiration: 24h
-  
-  services:
-    # Beacon 是只读服务，不需要 Forge 和 Oracle
-    fail_on_client_init: false
-  
-  graceful_shutdown_timeout: 10s
 
 logger:
   level: info
-  encoding: json  # json 或 console
-  dazzle: false   # 彩色输出（开发环境可设为 true）
+  format: json
+
+observability:
+  otlp_endpoint: "localhost:4317"
+
+server:
+  grpc_addr: ":9002"
+  graceful_shutdown_timeout: 10s
 
 data:
   database:
-    # Beacon 使用相同的数据库（共享数据层）
-    source: "host=localhost user=postgres password=postgres dbname=bifrost port=5432 sslmode=disable TimeZone=Asia/Shanghai"
-    max_idle_conns: 20  # 读服务可以用更多连接
+    dsn: "host=localhost user=postgres password=postgres dbname=bifrost port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+    max_idle_conns: 20
     max_open_conns: 200
     max_lifetime: 1h
-  
+
   redis:
     addr: "localhost:6379"
     password: ""
     db: 0
     read_timeout: 3s
     write_timeout: 3s
-    pool_size: 20  # 读服务可以用更大的连接池
+    pool_size: 20
     min_idle_conns: 5
-  
-  s3:
-    endpoint: "localhost:9000"
-    access_key: "minioadmin"
-    secret_key: "minioadmin"
-    bucket: "bifrost"
-    use_ssl: false
-    region: "us-east-1"
-  
-  cache:
-    post_ttl: 1h
-    post_ttl_jitter: 5m
-    view_count_flush_interval: 60s
-    batch_size: 200
-    invalidation_delay: 500ms
-  
 
 messenger:
   addr: "nats://127.0.0.1:4222"

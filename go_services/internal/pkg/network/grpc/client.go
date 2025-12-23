@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
@@ -18,12 +19,12 @@ import (
 )
 
 type ClientConfig struct {
-	Addr       string
-	CACertPath string // CA 根证书路径
-	CertPath   string // 客户端证书路径
-	KeyPath    string // 客户端私钥路径
-	ServerName string // 证书对应的服务器名称
-	Timeout    time.Duration
+	Addr       string        `yaml:"addr" mapstructure:"addr"`
+	CACertPath string        `yaml:"ca_cert_path" mapstructure:"ca_cert_path"` // CA 根证书路径
+	CertPath   string        `yaml:"cert_path" mapstructure:"cert_path"`       // 客户端证书路径
+	KeyPath    string        `yaml:"key_path" mapstructure:"key_path"`         // 客户端私钥路径
+	ServerName string        `yaml:"server_name" mapstructure:"server_name"`   // 证书对应的服务器名称
+	Timeout    time.Duration `yaml:"timeout" mapstructure:"timeout"`
 }
 
 // NewClient 创建 gRPC 客户端
@@ -54,8 +55,9 @@ func NewClient(cfg ClientConfig, l logger.Logger, opts ...grpc.DialOption) (*grp
 		}),
 	)
 
-	// 3.  组装拦截器链
-	// 顺序：Context (注入Metadata) -> Logging (记录日志) -> Tracing (OpenTelemetry, 如果有的话)
+	// 3. 组装拦截器链
+	// 顺序：Context (注入Metadata) -> Logging (记录日志)
+	// 注意：Tracing 通过 StatsHandler 集成，不需要单独的拦截器
 	dialOpts = append(dialOpts,
 		grpc.WithChainUnaryInterceptor(
 			// A. 上下文适配 (Go Context -> gRPC Metadata)
@@ -64,6 +66,8 @@ func NewClient(cfg ClientConfig, l logger.Logger, opts ...grpc.DialOption) (*grp
 			// B. 日志记录
 			ClientLoggingInterceptor(l),
 		),
+		// StatsHandler: OpenTelemetry Tracing 集成 (自动生成 Client Span)
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
 
 	// 4. 追加用户自定义选项
@@ -76,8 +80,12 @@ func NewClient(cfg ClientConfig, l logger.Logger, opts ...grpc.DialOption) (*grp
 	}
 
 	// 6. 强制健康检查 (Fail Fast)
-	// 使用带超时的 Context
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := verifyConnection(ctx, conn, l); err != nil {
@@ -85,7 +93,7 @@ func NewClient(cfg ClientConfig, l logger.Logger, opts ...grpc.DialOption) (*grp
 		return nil, fmt.Errorf("grpc connection unhealthy: %w", err)
 	}
 
-	l.Info("gRPC client connected and healthy", logger.String("addr", cfg.Addr))
+	l.Info("gRPC client connected", logger.String("addr", cfg.Addr))
 	return conn, nil
 }
 

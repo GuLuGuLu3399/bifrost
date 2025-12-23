@@ -51,8 +51,7 @@ func (uc *CategoryUseCase) CreateCategory(ctx context.Context, input *CreateCate
 	}
 
 	// 3. 落库
-	// 分类创建通常不涉及复杂的跨表事务（除非你要发 Outbox 事件通知 Search 服务立刻重建索引）
-	// 这里为了简单，暂不开启显式事务，直接调用 Repo
+	// 分类创建通常不涉及复杂的跨表事务，直接调用 Repo
 	return uc.repo.Create(ctx, category)
 }
 

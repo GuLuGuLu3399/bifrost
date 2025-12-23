@@ -1,23 +1,17 @@
 version: v1
 
 plugins:
-  # Go protobuf 生成
-  - plugin: go
-    out: go_services/api
+  - name: go
+    out: go_services
     opt:
-      - module=github.com/gulugulu3399/bifrost
       - paths=source_relative
 
-  # gRPC Go 生成
-  - plugin: go-grpc
-    out: go_services/api
+  - name: go-grpc
+    out: go_services
     opt:
-      - module=github.com/gulugulu3399/bifrost
       - paths=source_relative
 
-  # gRPC Gateway 生成
-  - plugin: grpc-gateway
-    out: go_services/api
+  - name: grpc-gateway
+    out: go_services
     opt:
-      - module=github.com/gulugulu3399/bifrost
       - paths=source_relative

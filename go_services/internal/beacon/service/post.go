@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 
 	commonv1 "github.com/gulugulu3399/bifrost/api/common/v1"
 	beaconv1 "github.com/gulugulu3399/bifrost/api/content/v1/beacon"
@@ -28,20 +27,7 @@ func (s *PostService) GetPost(ctx context.Context, req *beaconv1.GetPostRequest)
 
 func (s *PostService) ListPosts(ctx context.Context, req *beaconv1.ListPostsRequest) (*beaconv1.ListPostsResponse, error) {
 	// PageRequest 语义：PageToken 作为页码/游标，这里按“页码”解析。
-	page := 1
-	pageSize := 20
-	var nextToken string
-
-	if req.GetPage() != nil {
-		if req.GetPage().GetPageSize() > 0 {
-			pageSize = int(req.GetPage().GetPageSize())
-		}
-		if tok := req.GetPage().GetPageToken(); tok != "" {
-			if p, err := strconv.Atoi(tok); err == nil && p > 0 {
-				page = p
-			}
-		}
-	}
+	page, pageSize := parsePage(req.GetPage())
 
 	items, total, err := s.repo.ListPosts(ctx, &biz.PostListFilter{
 		Page:       page,
@@ -54,22 +40,12 @@ func (s *PostService) ListPosts(ctx context.Context, req *beaconv1.ListPostsRequ
 		return nil, xerr.Wrap(err, xerr.CodeInternal, "failed to list posts")
 	}
 
-	// next_page_token：简单页码策略。没有更多数据就返回空。
-	if int64(page*pageSize) < total {
-		nextToken = strconv.Itoa(page + 1)
-	}
-
-	tc := int32(total)
-	if total > int64(^uint32(0)>>1) {
-		// 防溢出：total 超过 int32 最大值时，PageResponse.TotalCount 置为最大值
-		tc = int32(^uint32(0) >> 1)
-	}
-
+	nextToken := nextPageTokenByTotal(page, pageSize, total)
 	return &beaconv1.ListPostsResponse{
 		Posts: items,
 		Page: &commonv1.PageResponse{
 			NextPageToken: nextToken,
-			TotalCount:    tc,
+			TotalCount:    totalToInt32(total),
 		},
 	}, nil
 }

@@ -1,0 +1,25 @@
+[package]
+name = "oracle"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "oracle"
+path = "src/main.rs"
+
+[dependencies]
+common = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+# DuckDB: 使用 bundled 让构建脚本自动编译/链接 duckdb（避免本机缺 duckdb.lib）
+duckdb = { version = "1.4.3", features = ["bundled"] }
+chrono = "0.4.42"
+
+[build-dependencies]

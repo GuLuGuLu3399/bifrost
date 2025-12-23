@@ -76,8 +76,6 @@ service PostService {
     };
   }
 
-  // [内部/系统接口] 回写渲染后的 HTML (供 Rust Forge 调用)
-  rpc UpdatePostRenderedContent(UpdatePostRenderedContentRequest) returns (UpdatePostRenderedContentResponse);
 
   // 删除文章
   rpc DeletePost(DeletePostRequest) returns (DeletePostResponse) {
@@ -162,6 +160,17 @@ service CategoryService {
   }
 }
 
+// [新增] 存储服务 (处理 MinIO 预签名)
+service StorageService {
+  // 获取上传凭证 (预签名 URL)
+  // 前端/Helm 拿到 URL 后直传 MinIO
+  rpc GetUploadTicket(GetUploadTicketRequest) returns (GetUploadTicketResponse) {
+    option (google.api.http) = {
+      post: "/v1/storage/upload_ticket"
+      body: "*"
+    };
+  }
+}
 
 // --- 请求/响应消息定义 ---
 
@@ -252,17 +261,6 @@ message UpdatePostRequest {
 
 message UpdatePostResponse {
   int64 version = 1;
-}
-
-message UpdatePostRenderedContentRequest {
-  int64 post_id = 1;
-  string html_body = 2;
-  string toc_json = 3;
-  string summary = 4;
-}
-
-message UpdatePostRenderedContentResponse {
-  bool success = 1;
 }
 
 message DeletePostRequest {
@@ -358,4 +356,15 @@ message ListCategoriesRequest {}
 
 message ListCategoriesResponse {
   repeated bifrost.content.v1.Category categories = 1;
+}
+
+// UploadTicket Messages
+message GetUploadTicketRequest {
+  string filename = 1; // 原始文件名 (如 "avatar.png")
+  string usage = 2;    // 用途: "avatar", "cover", "post_image"
+}
+
+message GetUploadTicketResponse {
+  string upload_url = 1; // MinIO 预签名上传链接 (带 Token)
+  string object_key = 2; // 最终的文件路径 (存库用)
 }

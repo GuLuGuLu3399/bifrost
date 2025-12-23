@@ -135,7 +135,6 @@ func (uc *UserUseCase) Login(ctx context.Context, input *LoginInput) (*User, err
 
 	// 4. [副作用] 更新最后登录时间
 	// 这是一个轻量级写入，通常可以异步做，但为了数据准确性，我们在单独的小事务中同步做
-	// 注意：这里不需要发 Outbox，除非你需要做严格的登录审计
 	_ = uc.tx.ExecTx(ctx, func(txCtx context.Context) error {
 		return uc.repo.UpdateLastLogin(txCtx, user.ID, time.Now())
 	})

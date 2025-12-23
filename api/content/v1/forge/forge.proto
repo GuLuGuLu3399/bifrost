@@ -26,6 +26,9 @@ service RenderService {
       get: "/v1/render/meta"
     };
   }
+
+  // 用于后端保存 nexus发送markdown -> Forge渲染 -> 返回HTML -> nexus写入
+  rpc Render(RenderRequest) returns (RenderResponse);
 }
 
 // --- Messages ---
@@ -47,4 +50,15 @@ message GetRenderMetaRequest {}
 message GetRenderMetaResponse {
   string version = 1;
   repeated string enabled_extensions = 2; // e.g. ["table", "strikethrough", "mermaid"]
+}
+
+// [新增] Message 定义
+message RenderRequest {
+  string raw_markdown = 1;
+}
+
+message RenderResponse {
+  string html_body = 1;
+  string toc_json = 2;
+  string summary = 3; // 可选：让 Forge 顺便提取摘要
 }

@@ -3,11 +3,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // PGX Driver for database/sql
+
+	// API Clients
+	forgev1 "github.com/gulugulu3399/bifrost/api/content/v1/forge"
+	nexusv1 "github.com/gulugulu3399/bifrost/api/content/v1/nexus"
 
 	// Business Layer
 	"github.com/gulugulu3399/bifrost/internal/nexus/biz"
@@ -25,6 +30,7 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/messenger"
 	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
+	"github.com/gulugulu3399/bifrost/internal/pkg/observability/tracing"
 	"github.com/gulugulu3399/bifrost/internal/pkg/security"
 )
 
@@ -44,9 +50,22 @@ func main() {
 	defer func() { _ = logger.Sync() }()
 
 	logger.Info("Starting Nexus Service",
-		logger.String("grpc_port", cfg.App.GRPCPort),
+		logger.String("grpc_addr", cfg.Server.GRPCAddr),
 		logger.String("env", cfg.App.Env),
 	)
+
+	// Tracing
+	shutdownTracer, usedEndpoint, err := tracing.InitProviderWithDefault(context.Background(), cfg.App.Name, cfg.Observability.OtlpEndpoint, "localhost:4317")
+	if err != nil {
+		logger.Warn("Failed to init tracer (non-fatal)", logger.Err(err))
+	} else {
+		logger.Info("Tracing initialized", logger.String("collector", usedEndpoint))
+	}
+	defer func() {
+		if err := shutdownTracer(context.Background()); err != nil {
+			logger.Error("Failed to shutdown tracer", logger.Err(err))
+		}
+	}()
 
 	// 3. 初始化基础设施
 	// 3.1 数据库连接（统一走 internal/pkg/database）
@@ -74,15 +93,15 @@ func main() {
 	txManager := data.NewTransaction(db)
 
 	// 3.4 Snowflake ID 生成器
-	snowflake, err := id.NewSnowflakeGenerator(cfg.App.SnowflakeNode)
+	snowflake, err := id.NewSnowflakeGenerator(cfg.SnowflakeNode)
 	if err != nil {
 		logger.Fatal("Failed to init snowflake", logger.Any("error", err))
 	}
 
 	// 3.5 JWT 管理器
 	jwtConfig := &security.JWTConfig{
-		SecretKey:     cfg.App.Security.JWTSecret,
-		Expiration:    cfg.App.Security.JWTExpiration,
+		SecretKey:     cfg.Security.JWTSecret,
+		Expiration:    cfg.Security.JWTExpiration,
 		RefreshExp:    7 * 24 * time.Hour,
 		Issuer:        "bifrost-nexus",
 		SigningMethod: "HS256",
@@ -111,7 +130,19 @@ func main() {
 
 	// 5. 初始化 Biz 层 (UseCases)
 	userUC := biz.NewUserUseCase(userRepo, txManager)
-	postUC := biz.NewPostUseCase(postRepo, txManager)
+
+	// [新增] Forge gRPC 客户端（可选）
+	var forgeClient forgev1.RenderServiceClient
+	if cfg.RPC.ForgeAddr != "" {
+		conn, err := pkggrpc.NewClient(pkggrpc.ClientConfig{Addr: cfg.RPC.ForgeAddr}, zlog)
+		if err != nil {
+			logger.Warn("Failed to connect forge, rendering disabled", logger.Err(err))
+		} else {
+			forgeClient = forgev1.NewRenderServiceClient(conn)
+		}
+	}
+
+	postUC := biz.NewPostUseCase(postRepo, txManager, forgeClient)
 	tagUC := biz.NewTagUseCase(tagRepo, txManager)
 	catUC := biz.NewCategoryUseCase(catRepo, txManager)
 	commentUC := biz.NewCommentUseCase(commentRepo, postRepo, txManager)
@@ -132,7 +163,7 @@ func main() {
 	}
 
 	g, err := pkggrpc.NewServer(pkggrpc.ServerConfig{
-		Addr:             cfg.App.GRPCPort,
+		Addr:             cfg.Server.GRPCAddr,
 		Timeout:          10 * time.Second,
 		EnableReflection: true,
 		EnableHealth:     true,
@@ -144,7 +175,14 @@ func main() {
 
 	app.RegisterGRPC(g.GRPC())
 
-	logger.Info("Nexus gRPC server running", logger.String("addr", cfg.App.GRPCPort))
+	// [新增] 注册 StorageService（MinIO 预签名上传）
+	storageSvc, err := service.NewStorageService(cfg)
+	if err != nil {
+		logger.Fatal("Failed to init storage service", logger.Any("error", err))
+	}
+	nexusv1.RegisterStorageServiceServer(g.GRPC(), storageSvc)
+
+	logger.Info("Nexus gRPC server running", logger.String("addr", cfg.Server.GRPCAddr))
 	if err := g.Start(); err != nil {
 		logger.Fatal("failed to serve", logger.Any("error", err))
 	}

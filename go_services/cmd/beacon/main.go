@@ -17,6 +17,7 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/messenger"
 	pkggrpc "github.com/gulugulu3399/bifrost/internal/pkg/network/grpc"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
+	"github.com/gulugulu3399/bifrost/internal/pkg/observability/tracing"
 )
 
 var configFile = flag.String("f", "configs/beacon.yaml", "the config file")
@@ -37,10 +38,23 @@ func main() {
 	logger.SetGlobal(zlog)
 	defer func() { _ = logger.Sync() }()
 
+	// Tracing
+	shutdownTracer, usedEndpoint, err := tracing.InitProviderWithDefault(ctx, cfg.App.Name, cfg.Observability.OtlpEndpoint, "localhost:4317")
+	if err != nil {
+		logger.Warn("Failed to init tracer (non-fatal)", logger.Err(err))
+	} else {
+		logger.Info("Tracing initialized", logger.String("collector", usedEndpoint))
+	}
+	defer func() {
+		if err := shutdownTracer(context.Background()); err != nil {
+			logger.Error("Failed to shutdown tracer", logger.Err(err))
+		}
+	}()
+
 	// DB
 	db, err := database.New(&database.Config{
 		Driver:          "postgres",
-		DSN:             cfg.Data.Database.Source,
+		DSN:             cfg.Data.Database.DSN,
 		MaxOpenConns:    cfg.Data.Database.MaxOpenConns,
 		MaxIdleConns:    cfg.Data.Database.MaxIdleConns,
 		ConnMaxLifetime: cfg.Data.Database.MaxLifetime,
@@ -78,8 +92,8 @@ func main() {
 
 	// 统一使用 pkggrpc.Server
 	g, err := pkggrpc.NewServer(pkggrpc.ServerConfig{
-		Addr:             cfg.App.GRPCPort,
-		Timeout:          cfg.App.GracefulShutdownTimeout,
+		Addr:             cfg.Server.GRPCAddr,
+		Timeout:          cfg.Server.GracefulShutdownTimeout,
 		EnableReflection: true,
 		EnableHealth:     true,
 		//TODO keepalive 这里先走默认零值（由 gRPC 自己使用默认策略）；后续可以从 config 补齐

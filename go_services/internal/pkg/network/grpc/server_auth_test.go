@@ -51,6 +51,8 @@ func TestAuthInterceptor_Unary(t *testing.T) {
 		wantCode codes.Code
 		wantNext bool
 	}{
+		{name: "Health check - no token - allowed", method: "/grpc.health.v1.Health/Check", token: "", wantCode: codes.OK, wantNext: true},
+		{name: "Health watch - no token - allowed", method: "/grpc.health.v1.Health/Watch", token: "", wantCode: codes.OK, wantNext: true},
 		{name: "Public method - no token - allowed", method: "/service/Login", token: "", wantCode: codes.OK, wantNext: true},
 		{name: "Normal method - no token - unauthenticated", method: "/service/GetPost", token: "", wantCode: codes.Unauthenticated, wantNext: false},
 		{name: "Normal method - invalid token - unauthenticated", method: "/service/GetPost", token: "Bearer invalid-token", wantCode: codes.Unauthenticated, wantNext: false},

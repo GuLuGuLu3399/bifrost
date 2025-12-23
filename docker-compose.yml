@@ -1,0 +1,228 @@
+services:
+  # ------------------------------------
+  # 基础设施 (Infrastructure)
+  # ------------------------------------
+
+  # 1. Jaeger (全链路追踪)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: bifrost-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # 仅暴露 UI
+    networks:
+      - bifrost-network
+
+  # 2. PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: bifrost-postgres
+    environment:
+      POSTGRES_USER: bifrost_user
+      POSTGRES_PASSWORD: bifrost_pass
+      POSTGRES_DB: bifrost
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - bifrost-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bifrost_user -d bifrost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. Redis
+  redis:
+    image: redis:7-alpine
+    container_name: bifrost-redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - bifrost-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # 4. NATS（内部网络使用，不暴露宿主机端口）
+  nats:
+    image: nats:2-alpine
+    container_name: bifrost-nats
+    command: ["--jetstream", "--store_dir=/data"]
+    volumes:
+      - nats_data:/data
+    networks:
+      - bifrost-network
+
+  # 5. MinIO（对象存储，仅内网访问）
+  minio:
+    image: minio/minio:latest
+    container_name: bifrost-minio
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000" # API 端口（供 Nexus 使用）
+      - "9001" # Console 端口（供未来 Nginx 代理）
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - bifrost-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # 6. 初始化 MinIO Bucket（一次性任务）
+  createbuckets:
+    image: minio/mc
+    container_name: bifrost-createbuckets
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - bifrost-network
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/bifrost-assets;
+      /usr/bin/mc anonymous set public myminio/bifrost-assets;
+      exit 0;
+      "
+
+  # ------------------------------------
+  # 微服务 (Microservices)
+  # ------------------------------------
+
+  # 1. Nexus (写服务)
+  nexus:
+    build:
+      context: ./go_services
+      dockerfile: ../Dockerfile
+      args:
+        SERVICE_NAME: nexus
+    container_name: bifrost-nexus
+    environment:
+      - BIFROST_APP_ENV=docker
+      - BIFROST_APP_NAME=bifrost-nexus
+      - BIFROST_SERVER_GRPC_ADDR=:9001
+      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
+      - BIFROST_DATA_DATABASE_DSN=host=postgres port=5432 user=bifrost_user password=bifrost_pass dbname=bifrost sslmode=disable
+      - BIFROST_DATA_DATABASE_DRIVER=pgx
+      - BIFROST_MESSENGER_ADDR=nats://nats:4222
+      - BIFROST_STORAGE_ENDPOINT=minio:9000
+      - BIFROST_STORAGE_ACCESS_KEY_ID=minioadmin
+      - BIFROST_STORAGE_SECRET_ACCESS_KEY=minioadmin
+      - BIFROST_STORAGE_BUCKET=bifrost-assets
+      - BIFROST_STORAGE_USE_SSL=false
+      - BIFROST_STORAGE_REGION=us-east-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      jaeger:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    networks:
+      - bifrost-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:9001"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Beacon (读服务)
+  beacon:
+    build:
+      context: ./go_services
+      dockerfile: ../Dockerfile
+      args:
+        SERVICE_NAME: beacon
+    container_name: bifrost-beacon
+    environment:
+      - BIFROST_APP_ENV=docker
+      - BIFROST_APP_NAME=bifrost-beacon
+      - BIFROST_SERVER_GRPC_ADDR=:9002
+      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
+      - BIFROST_DATA_DATABASE_DSN=host=postgres port=5432 user=bifrost_user password=bifrost_pass dbname=bifrost sslmode=disable
+      - BIFROST_DATA_REDIS_ADDR=redis:6379
+      - BIFROST_MESSENGER_ADDR=nats://nats:4222
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    networks:
+      - bifrost-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:9002"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Gjallar (网关)
+  gjallar:
+    build:
+      context: ./go_services
+      dockerfile: ../Dockerfile
+      args:
+        SERVICE_NAME: gjallar
+    container_name: bifrost-gjallar
+    environment:
+      - BIFROST_APP_ENV=docker
+      - BIFROST_APP_NAME=bifrost-gjallar
+      - BIFROST_HTTP_ADDR=:8080
+      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
+      - BIFROST_RPC_NEXUS_ADDR=nexus:9001
+      - BIFROST_RPC_BEACON_ADDR=beacon:9002
+    ports:
+      - "8080:8080" # 对外暴露 HTTP 端口
+    depends_on:
+      nexus:
+        condition: service_healthy
+      beacon:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    networks:
+      - bifrost-network
+    restart: unless-stopped
+
+  # 4. Dozzle (容器日志浏览器)
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: bifrost-dozzle
+    ports:
+      - "9999:8080" # 访问 http://localhost:9999
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - bifrost-network
+    restart: unless-stopped
+
+# 网络定义
+networks:
+  bifrost-network:
+    driver: bridge
+
+# 持久化存储
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:
+  minio_data:

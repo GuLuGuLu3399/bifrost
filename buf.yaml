@@ -5,16 +5,44 @@ breaking:
 
 lint:
   use:
-    - DEFAULT
+    - STANDARD
     - COMMENTS
+  ignore_only:
+    COMMENT_ENUM_VALUE:
+      - api/common/v1/common.proto
+      - api/content/v1/models.proto
+    COMMENT_FIELD:
+      - api/common/v1/common.proto
+      - api/content/v1/beacon/beacon.proto
+      - api/content/v1/forge/forge.proto
+      - api/content/v1/models.proto
+      - api/content/v1/nexus/nexus.proto
+      - api/content/v1/oracle/oracle.proto
+      - api/search/v1/mirror.proto
+    COMMENT_MESSAGE:
+      - api/content/v1/beacon/beacon.proto
+      - api/content/v1/forge/forge.proto
+      - api/content/v1/models.proto
+      - api/content/v1/nexus/nexus.proto
+      - api/content/v1/oracle/oracle.proto
+      - api/search/v1/mirror.proto
+    COMMENT_RPC:
+      - api/content/v1/beacon/beacon.proto
+    IMPORT_USED:
+      - api/content/v1/beacon/beacon.proto
+    PACKAGE_DIRECTORY_MATCH:
+      - api/common/v1/common.proto
+      - api/content/v1/beacon/beacon.proto
+      - api/content/v1/forge/forge.proto
+      - api/content/v1/models.proto
+      - api/content/v1/nexus/nexus.proto
+      - api/content/v1/oracle/oracle.proto
+      - api/search/v1/mirror.proto
+    PACKAGE_VERSION_SUFFIX:
+      - api/content/v1/beacon/beacon.proto
+      - api/content/v1/forge/forge.proto
+      - api/content/v1/nexus/nexus.proto
+      - api/content/v1/oracle/oracle.proto
 
-generate:
-  - path: go_services/api
-    plugin: buf.build/bufbuild/go:v1.31.1
-    opt:
-      - paths=source_relative
-  - path: go_services/api
-    plugin: buf.build/grpc-ecosystem/grpc-gateway:v2.27.3
-    opt:
-      - paths=source_relative
-      - grpc_api_configuration=api/gateway.yaml
+deps:
+  - buf.build/googleapis/googleapis

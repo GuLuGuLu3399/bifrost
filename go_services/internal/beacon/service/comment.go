@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 
 	commonv1 "github.com/gulugulu3399/bifrost/api/common/v1"
 	beaconv1 "github.com/gulugulu3399/bifrost/api/content/v1/beacon"
@@ -24,19 +23,7 @@ func (s *CommentService) ListComments(ctx context.Context, req *beaconv1.ListCom
 		return nil, xerr.New(xerr.CodeBadRequest, "post_id is required")
 	}
 
-	page := 1
-	pageSize := 20
-	var nextToken string
-	if req.GetPage() != nil {
-		if req.GetPage().GetPageSize() > 0 {
-			pageSize = int(req.GetPage().GetPageSize())
-		}
-		if tok := req.GetPage().GetPageToken(); tok != "" {
-			if p, err := strconv.Atoi(tok); err == nil && p > 0 {
-				page = p
-			}
-		}
-	}
+	page, pageSize := parsePage(req.GetPage())
 
 	items, total, err := s.repo.ListComments(ctx, &biz.CommentListFilter{
 		PostID:   req.GetPostId(),
@@ -48,20 +35,12 @@ func (s *CommentService) ListComments(ctx context.Context, req *beaconv1.ListCom
 		return nil, err
 	}
 
-	if int64(page*pageSize) < total {
-		nextToken = strconv.Itoa(page + 1)
-	}
-
-	tc := int32(total)
-	if total > int64(^uint32(0)>>1) {
-		tc = int32(^uint32(0) >> 1)
-	}
-
+	nextToken := nextPageTokenByTotal(page, pageSize, total)
 	return &beaconv1.ListCommentsResponse{
 		Comments: items,
 		Page: &commonv1.PageResponse{
 			NextPageToken: nextToken,
-			TotalCount:    tc,
+			TotalCount:    totalToInt32(total),
 		},
 	}, nil
 }

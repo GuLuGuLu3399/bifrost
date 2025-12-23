@@ -2,95 +2,84 @@ package config
 
 import (
 	"fmt"
-	"strings"
 	"time"
-
-	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 )
 
-// BeaconConfig 对应 configs/beacon.yaml（只读服务 Beacon）。
-// 结构保持与 YAML 一致，便于 viper mapstructure 直接反序列化。
-//
-// 注意：common.Loader 会自动支持环境变量覆盖：
-// - 前缀 BIFROST
-// - "." -> "_"
-//
-// 例如：BIFROST_APP_GRPC_PORT=":9002"
-//
-//	BIFROST_DATA_DATABASE_SOURCE="..."
+// BeaconConfig 统一后的读服务配置，嵌入 BaseConfig 保持一致性。
 type BeaconConfig struct {
-	App struct {
-		Name     string `mapstructure:"name"`
-		Version  string `mapstructure:"version"`
-		Env      string `mapstructure:"env"`
-		GRPCPort string `mapstructure:"grpc_port"`
+	BaseConfig `mapstructure:",squash" yaml:",inline"`
 
-		GracefulShutdownTimeout time.Duration `mapstructure:"graceful_shutdown_timeout"`
-	} `mapstructure:"app"`
-
-	Logger struct {
-		Level    string `mapstructure:"level"`
-		Encoding string `mapstructure:"encoding"`
-		Dazzle   bool   `mapstructure:"dazzle"`
-	} `mapstructure:"logger"`
+	Server struct {
+		GRPCAddr                string        `mapstructure:"grpc_addr" yaml:"grpc_addr"`
+		GracefulShutdownTimeout time.Duration `mapstructure:"graceful_shutdown_timeout" yaml:"graceful_shutdown_timeout"`
+	} `mapstructure:"server" yaml:"server"`
 
 	Data struct {
 		Database struct {
-			Source       string        `mapstructure:"source"`
-			MaxIdleConns int           `mapstructure:"max_idle_conns"`
-			MaxOpenConns int           `mapstructure:"max_open_conns"`
-			MaxLifetime  time.Duration `mapstructure:"max_lifetime"`
-		} `mapstructure:"database"`
+			DSN          string        `mapstructure:"dsn" yaml:"dsn"`
+			MaxIdleConns int           `mapstructure:"max_idle_conns" yaml:"max_idle_conns"`
+			MaxOpenConns int           `mapstructure:"max_open_conns" yaml:"max_open_conns"`
+			MaxLifetime  time.Duration `mapstructure:"max_lifetime" yaml:"max_lifetime"`
+		} `mapstructure:"database" yaml:"database"`
 
 		Redis struct {
-			Addr         string        `mapstructure:"addr"`
-			Password     string        `mapstructure:"password"`
-			DB           int           `mapstructure:"db"`
-			DialTimeout  time.Duration `mapstructure:"dial_timeout"`
-			ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-			WriteTimeout time.Duration `mapstructure:"write_timeout"`
-			PoolSize     int           `mapstructure:"pool_size"`
-			MinIdleConns int           `mapstructure:"min_idle_conns"`
-		} `mapstructure:"redis"`
-	} `mapstructure:"data"`
+			Addr         string        `mapstructure:"addr" yaml:"addr"`
+			Password     string        `mapstructure:"password" yaml:"password"`
+			DB           int           `mapstructure:"db" yaml:"db"`
+			DialTimeout  time.Duration `mapstructure:"dial_timeout" yaml:"dial_timeout"`
+			ReadTimeout  time.Duration `mapstructure:"read_timeout" yaml:"read_timeout"`
+			WriteTimeout time.Duration `mapstructure:"write_timeout" yaml:"write_timeout"`
+			PoolSize     int           `mapstructure:"pool_size" yaml:"pool_size"`
+			MinIdleConns int           `mapstructure:"min_idle_conns" yaml:"min_idle_conns"`
+		} `mapstructure:"redis" yaml:"redis"`
+	} `mapstructure:"data" yaml:"data"`
 
 	Messenger struct {
-		Addr string `mapstructure:"addr"`
-	} `mapstructure:"messenger"`
+		Addr string `mapstructure:"addr" yaml:"addr"`
+	} `mapstructure:"messenger" yaml:"messenger"`
 }
 
 func (c *BeaconConfig) validate() error {
-	if c.App.GRPCPort == "" {
-		return fmt.Errorf("app.grpc_port 为必填项")
+	if c.App.Name == "" {
+		c.App.Name = "bifrost-beacon"
 	}
-	if c.Data.Database.Source == "" {
-		return fmt.Errorf("data.database.source 为必填项")
+	if c.Server.GRPCAddr == "" {
+		return fmt.Errorf("server.grpc_addr 为必填项")
 	}
-	if c.App.GracefulShutdownTimeout == 0 {
-		c.App.GracefulShutdownTimeout = 10 * time.Second
+	if c.Data.Database.DSN == "" {
+		return fmt.Errorf("data.database.dsn 为必填项")
+	}
+	if c.Server.GracefulShutdownTimeout == 0 {
+		c.Server.GracefulShutdownTimeout = 10 * time.Second
 	}
 	if c.Messenger.Addr == "" {
 		c.Messenger.Addr = "nats://127.0.0.1:4222"
+	}
+	if c.Observability.OtlpEndpoint == "" {
+		c.Observability.OtlpEndpoint = "localhost:4317"
 	}
 	return nil
 }
 
 func LoadBeacon(path string) (*BeaconConfig, error) {
 	l := NewLoader(WithDefaults(map[string]any{
-		"app.env":                       "dev",
-		"app.graceful_shutdown_timeout": "10s",
-		"logger.level":                  "info",
-		"logger.encoding":               "json",
-		"logger.dazzle":                 false,
-		"data.database.max_idle_conns":  20,
-		"data.database.max_open_conns":  200,
-		"data.database.max_lifetime":    "1h",
-		"data.redis.dial_timeout":       "5s",
-		"data.redis.read_timeout":       "3s",
-		"data.redis.write_timeout":      "3s",
-		"data.redis.pool_size":          20,
-		"data.redis.min_idle_conns":     5,
-		"messenger.addr":                "nats://127.0.0.1:4222",
+		"app.name":                    "bifrost-beacon",
+		"app.env":                     "dev",
+		"app.version":                 "1.0.0",
+		"logger.level":                "info",
+		"logger.format":               "json",
+		"observability.otlp_endpoint": "localhost:4317",
+		"server.grpc_addr":            ":9002",
+		"server.graceful_shutdown_timeout": "10s",
+		"data.database.max_idle_conns":     20,
+		"data.database.max_open_conns":     200,
+		"data.database.max_lifetime":       "1h",
+		"data.redis.dial_timeout":          "5s",
+		"data.redis.read_timeout":          "3s",
+		"data.redis.write_timeout":         "3s",
+		"data.redis.pool_size":             20,
+		"data.redis.min_idle_conns":        5,
+		"messenger.addr":                   "nats://127.0.0.1:4222",
 	}))
 
 	var cfg BeaconConfig
@@ -98,30 +87,4 @@ func LoadBeacon(path string) (*BeaconConfig, error) {
 		return nil, err
 	}
 	return &cfg, nil
-}
-
-func (c *BeaconConfig) LoggerConfig() *logger.Config {
-	lc := logger.DefaultConfig()
-
-	switch strings.ToLower(strings.TrimSpace(c.Logger.Encoding)) {
-	case "console":
-		lc.Format = "console"
-	default:
-		lc.Format = "json"
-	}
-
-	lc.EnableColor = c.Logger.Dazzle
-
-	switch strings.ToLower(strings.TrimSpace(c.Logger.Level)) {
-	case "debug":
-		lc.Level = logger.DebugLevel
-	case "warn", "warning":
-		lc.Level = logger.WarnLevel
-	case "error":
-		lc.Level = logger.ErrorLevel
-	default:
-		lc.Level = logger.InfoLevel
-	}
-
-	return lc
 }

@@ -1,0 +1,29 @@
+[package]
+name = "mirror"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "mirror"
+path = "src/main.rs"
+
+[dependencies]
+common = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+# 搜索引擎
+tantivy = { workspace = true }
+chrono = "0.4.42"
+futures = "0.3.28"
+
+# 中文分词 (直接使用 jieba-rs，因为 cang-jie 不兼容 tantivy 0.25)
+jieba-rs = "0.8"
+
+[build-dependencies]

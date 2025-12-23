@@ -1,0 +1,101 @@
+# Bifrost Monorepo .gitignore
+# Language: Go + Rust + gRPC/Proto + Docker + Windows
+
+############################
+# OS / Editor
+############################
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.history/
+*.code-workspace
+
+############################
+# Secrets / Config
+############################
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.cer
+*.crt
+*.cert
+
+############################
+# Logs & Temp
+############################
+logs/
+*.log
+tmp/
+temp/
+
+############################
+# Docker / Containers
+############################
+# Local bind-mount data (if present)
+postgres_data/
+redis_data/
+# Compose overrides (local only)
+docker-compose.override.yml
+
+############################
+# Go
+############################
+# Binaries & test outputs
+*.exe
+*.out
+*.test
+*.prof
+*.pprof
+coverage*
+*.coverprofile
+cover.out
+# Local build outputs under services
+go_services/**/bin/
+
+############################
+# Rust
+############################
+# Workspace build outputs
+rust_services/target/
+# Per-crate target directories (defensive)
+rust_services/**/target/
+# Local service data (e.g., Oracle DuckDB)
+rust_services/**/data/
+rust_services/**/*.db
+# Backup files
+*.rs.bk
+
+############################
+# General build artifacts
+############################
+dist/
+build/
+out/
+*.dll
+*.so
+*.dylib
+
+############################
+# Node (if web present later)
+############################
+web/node_modules/
+web/.next/
+web/dist/
+
+############################
+# Proto / Generated Code
+############################
+# NOTE: We intentionally DO NOT ignore *.pb.go because they are tracked.
+# If a separate gen directory is used later, uncomment:
+# api/gen/
+
+############################
+# Misc
+############################
+# Avoid committing editor swap files and backups
+*~
+*.swp
+*.swo
