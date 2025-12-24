@@ -291,11 +291,12 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	PostService_ListPosts_FullMethodName  = "/bifrost.content.v1.nexus.PostService/ListPosts"
-	PostService_CreatePost_FullMethodName = "/bifrost.content.v1.nexus.PostService/CreatePost"
-	PostService_UpdatePost_FullMethodName = "/bifrost.content.v1.nexus.PostService/UpdatePost"
-	PostService_DeletePost_FullMethodName = "/bifrost.content.v1.nexus.PostService/DeletePost"
-	PostService_GetPost_FullMethodName    = "/bifrost.content.v1.nexus.PostService/GetPost"
+	PostService_ListDrafts_FullMethodName  = "/bifrost.content.v1.nexus.PostService/ListDrafts"
+	PostService_FetchSource_FullMethodName = "/bifrost.content.v1.nexus.PostService/FetchSource"
+	PostService_CreatePost_FullMethodName  = "/bifrost.content.v1.nexus.PostService/CreatePost"
+	PostService_UpdatePost_FullMethodName  = "/bifrost.content.v1.nexus.PostService/UpdatePost"
+	PostService_DeletePost_FullMethodName  = "/bifrost.content.v1.nexus.PostService/DeletePost"
+	PostService_GetPost_FullMethodName     = "/bifrost.content.v1.nexus.PostService/GetPost"
 )
 
 // PostServiceClient is the client API for PostService service.
@@ -303,18 +304,22 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // ==========================================
-// 文章服务 (Post Service)
+// 文章服务 (Post Service) - Admin Only
 // ==========================================
+// 内部使用：此服务仅供管理后台使用，强一致性保证
+// 所有操作均支持全量数据（包括草稿、已发布、已归档状态）
 type PostServiceClient interface {
-	// [新增] 管理端获取文章列表 (无缓存，实时，看全部)
-	ListPosts(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
+	// [强一致性] 管理端获取文章列表 (无缓存，实时，支持所有状态)
+	ListDrafts(ctx context.Context, in *ListDraftsRequest, opts ...grpc.CallOption) (*ListDraftsResponse, error)
+	// [强一致性] 获取文章源码 (返回 raw_markdown 供编辑器使用)
+	FetchSource(ctx context.Context, in *FetchSourceRequest, opts ...grpc.CallOption) (*FetchSourceResponse, error)
 	// 创建文章
 	CreatePost(ctx context.Context, in *CreatePostRequest, opts ...grpc.CallOption) (*CreatePostResponse, error)
 	// 更新文章 (基本信息 + Markdown)
 	UpdatePost(ctx context.Context, in *UpdatePostRequest, opts ...grpc.CallOption) (*UpdatePostResponse, error)
 	// 删除文章
 	DeletePost(ctx context.Context, in *DeletePostRequest, opts ...grpc.CallOption) (*DeletePostResponse, error)
-	// 获取文章详情 (仅用于"编辑文章"页面的回显，不用于博客前台展示)
+	// [强一致性] 获取文章详情 (仅用于编辑页面回显，包含所有字段)
 	GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error)
 }
 
@@ -326,10 +331,20 @@ func NewPostServiceClient(cc grpc.ClientConnInterface) PostServiceClient {
 	return &postServiceClient{cc}
 }
 
-func (c *postServiceClient) ListPosts(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error) {
+func (c *postServiceClient) ListDrafts(ctx context.Context, in *ListDraftsRequest, opts ...grpc.CallOption) (*ListDraftsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListPostsResponse)
-	err := c.cc.Invoke(ctx, PostService_ListPosts_FullMethodName, in, out, cOpts...)
+	out := new(ListDraftsResponse)
+	err := c.cc.Invoke(ctx, PostService_ListDrafts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *postServiceClient) FetchSource(ctx context.Context, in *FetchSourceRequest, opts ...grpc.CallOption) (*FetchSourceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FetchSourceResponse)
+	err := c.cc.Invoke(ctx, PostService_FetchSource_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -381,18 +396,22 @@ func (c *postServiceClient) GetPost(ctx context.Context, in *GetPostRequest, opt
 // for forward compatibility.
 //
 // ==========================================
-// 文章服务 (Post Service)
+// 文章服务 (Post Service) - Admin Only
 // ==========================================
+// 内部使用：此服务仅供管理后台使用，强一致性保证
+// 所有操作均支持全量数据（包括草稿、已发布、已归档状态）
 type PostServiceServer interface {
-	// [新增] 管理端获取文章列表 (无缓存，实时，看全部)
-	ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error)
+	// [强一致性] 管理端获取文章列表 (无缓存，实时，支持所有状态)
+	ListDrafts(context.Context, *ListDraftsRequest) (*ListDraftsResponse, error)
+	// [强一致性] 获取文章源码 (返回 raw_markdown 供编辑器使用)
+	FetchSource(context.Context, *FetchSourceRequest) (*FetchSourceResponse, error)
 	// 创建文章
 	CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error)
 	// 更新文章 (基本信息 + Markdown)
 	UpdatePost(context.Context, *UpdatePostRequest) (*UpdatePostResponse, error)
 	// 删除文章
 	DeletePost(context.Context, *DeletePostRequest) (*DeletePostResponse, error)
-	// 获取文章详情 (仅用于"编辑文章"页面的回显，不用于博客前台展示)
+	// [强一致性] 获取文章详情 (仅用于编辑页面回显，包含所有字段)
 	GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error)
 	mustEmbedUnimplementedPostServiceServer()
 }
@@ -404,8 +423,11 @@ type PostServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPostServiceServer struct{}
 
-func (UnimplementedPostServiceServer) ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListPosts not implemented")
+func (UnimplementedPostServiceServer) ListDrafts(context.Context, *ListDraftsRequest) (*ListDraftsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDrafts not implemented")
+}
+func (UnimplementedPostServiceServer) FetchSource(context.Context, *FetchSourceRequest) (*FetchSourceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FetchSource not implemented")
 }
 func (UnimplementedPostServiceServer) CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreatePost not implemented")
@@ -440,20 +462,38 @@ func RegisterPostServiceServer(s grpc.ServiceRegistrar, srv PostServiceServer) {
 	s.RegisterService(&PostService_ServiceDesc, srv)
 }
 
-func _PostService_ListPosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListPostsRequest)
+func _PostService_ListDrafts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDraftsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PostServiceServer).ListPosts(ctx, in)
+		return srv.(PostServiceServer).ListDrafts(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PostService_ListPosts_FullMethodName,
+		FullMethod: PostService_ListDrafts_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostServiceServer).ListPosts(ctx, req.(*ListPostsRequest))
+		return srv.(PostServiceServer).ListDrafts(ctx, req.(*ListDraftsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PostService_FetchSource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FetchSourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PostServiceServer).FetchSource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PostService_FetchSource_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PostServiceServer).FetchSource(ctx, req.(*FetchSourceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -538,8 +578,12 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*PostServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListPosts",
-			Handler:    _PostService_ListPosts_Handler,
+			MethodName: "ListDrafts",
+			Handler:    _PostService_ListDrafts_Handler,
+		},
+		{
+			MethodName: "FetchSource",
+			Handler:    _PostService_FetchSource_Handler,
 		},
 		{
 			MethodName: "CreatePost",

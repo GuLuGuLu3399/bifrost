@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nats-io/nats.go"
 	"github.com/gulugulu3399/bifrost/internal/pkg/xerr"
+	"github.com/nats-io/nats.go"
 )
 
 // Client 是轻量级 NATS 消息客户端
@@ -55,6 +55,7 @@ type Handler func(subject string, data []byte)
 // - group: Queue Group 名称（同一组的多个消费者会负载均衡）
 //   - "beacon_service" 用于缓存失效
 //   - "mirror_service" 用于索引更新
+//
 // - handler: 消息处理回调函数
 //
 // 返回值：subscription，可用于 Unsubscribe 或查询订阅状态

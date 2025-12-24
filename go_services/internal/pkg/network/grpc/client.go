@@ -124,12 +124,22 @@ func verifyConnection(ctx context.Context, conn *grpc.ClientConn, l logger.Logge
 	// 所以健康检查的请求也会被 ClientLoggingInterceptor 记录下来
 	resp, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
 	if err != nil {
-		return fmt.Errorf("health check failed: %v", err)
+		// 健康检查失败时仅记录警告（某些服务如 Rust gRPC 可能未实现健康检查）
+		// 但仍然允许连接继续使用（Fail Soft）
+		l.Warn("gRPC health check not available or failed",
+			logger.String("addr", conn.Target()),
+			logger.Err(err))
+		return nil
 	}
 	if resp.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-		return fmt.Errorf("service is not serving: %s", resp.Status)
+		// 服务存在但状态不健康，记录警告但允许继续
+		l.Warn("gRPC service not serving",
+			logger.String("addr", conn.Target()),
+			logger.String("status", resp.Status.String()))
+		return nil
 	}
 
+	l.Debug("gRPC health check passed", logger.String("addr", conn.Target()))
 	return nil
 }
 

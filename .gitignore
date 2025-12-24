@@ -22,6 +22,7 @@ Thumbs.db
 *.cer
 *.crt
 *.cert
+!.env.example
 
 ############################
 # Logs & Temp
@@ -84,6 +85,24 @@ out/
 web/node_modules/
 web/.next/
 web/dist/
+
+############################
+# Apps (Nuxt/Node) - Horizon & future apps
+############################
+# Common Nuxt/Nitro outputs
+apps/**/.nuxt
+apps/**/.nitro
+apps/**/.output
+apps/**/.cache
+apps/**/.data
+# Node dependencies
+apps/**/node_modules/
+# Build outputs & logs (defensive)
+apps/**/dist
+apps/**/logs
+# IDE-specific
+apps/**/.fleet
+apps/**/.idea
 
 ############################
 # Proto / Generated Code

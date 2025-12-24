@@ -21,6 +21,7 @@ type Config struct {
 	RPC struct {
 		Nexus  grpc.ClientConfig `mapstructure:"nexus" yaml:"nexus"`
 		Beacon grpc.ClientConfig `mapstructure:"beacon" yaml:"beacon"`
+		Mirror grpc.ClientConfig `mapstructure:"mirror" yaml:"mirror"`
 	} `mapstructure:"rpc" yaml:"rpc"`
 }
 
@@ -66,9 +67,11 @@ func DefaultConfig() *Config {
 		RPC: struct {
 			Nexus  grpc.ClientConfig "mapstructure:\"nexus\" yaml:\"nexus\""
 			Beacon grpc.ClientConfig "mapstructure:\"beacon\" yaml:\"beacon\""
+			Mirror grpc.ClientConfig "mapstructure:\"mirror\" yaml:\"mirror\""
 		}{
 			Nexus:  grpc.ClientConfig{Addr: "localhost:9001", Timeout: 5 * time.Second},
 			Beacon: grpc.ClientConfig{Addr: "localhost:9002", Timeout: 5 * time.Second},
+			Mirror: grpc.ClientConfig{Addr: "localhost:9093", Timeout: 5 * time.Second},
 		},
 	}
 }
@@ -95,6 +98,8 @@ func LoadGjallarConfig() (*Config, error) {
 		// Provide defaults so Viper binds keys and env can override
 		"rpc.nexus.addr":     "localhost:9001",
 		"rpc.nexus.timeout":  "5s",
+		"rpc.mirror.addr":    "localhost:9093",
+		"rpc.mirror.timeout": "5s",
 		"rpc.beacon.addr":    "localhost:9002",
 		"rpc.beacon.timeout": "5s",
 	}))

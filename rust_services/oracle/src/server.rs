@@ -2,6 +2,7 @@
 
 use crate::ingestion::{EventPayload, Ingestor};
 use crate::storage::duck::DuckStore;
+use common::ctx::ContextData;
 use common::oracle::analysis_service_server::AnalysisService;
 use common::oracle::{
     GetContentScoreRequest, GetContentScoreResponse, GetDashboardStatsRequest,
@@ -31,6 +32,16 @@ impl AnalysisService for OracleServer {
     ) -> Result<Response<TrackEventResponse>, Status> {
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         let req = request.into_inner();
 
         // 转换为内部 EventPayload
@@ -58,6 +69,16 @@ impl AnalysisService for OracleServer {
     ) -> Result<Response<GetDashboardStatsResponse>, Status> {
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         let req = request.into_inner();
 
         // 计算查询天数范围 (简单处理：用开始时间到现在的时间差，或者默认7天)

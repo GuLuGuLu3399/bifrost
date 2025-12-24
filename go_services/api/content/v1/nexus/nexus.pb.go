@@ -1049,7 +1049,257 @@ func (x *GetPostResponse) GetPost() *v1.Post {
 	return nil
 }
 
-// 请求定义 (比 Beacon 的更强大，支持搜状态)
+// [内部使用] 获取文章源码 (包含 raw_markdown, status, version)
+type FetchSourceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PostId        int64                  `protobuf:"varint,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FetchSourceRequest) Reset() {
+	*x = FetchSourceRequest{}
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FetchSourceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FetchSourceRequest) ProtoMessage() {}
+
+func (x *FetchSourceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FetchSourceRequest.ProtoReflect.Descriptor instead.
+func (*FetchSourceRequest) Descriptor() ([]byte, []int) {
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *FetchSourceRequest) GetPostId() int64 {
+	if x != nil {
+		return x.PostId
+	}
+	return 0
+}
+
+type FetchSourceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	RawMarkdown   string                 `protobuf:"bytes,3,opt,name=raw_markdown,json=rawMarkdown,proto3" json:"raw_markdown,omitempty"`
+	Status        v1.PostStatus          `protobuf:"varint,4,opt,name=status,proto3,enum=bifrost.content.v1.PostStatus" json:"status,omitempty"`
+	Version       int64                  `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"` // 用于乐观并发控制
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FetchSourceResponse) Reset() {
+	*x = FetchSourceResponse{}
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FetchSourceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FetchSourceResponse) ProtoMessage() {}
+
+func (x *FetchSourceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FetchSourceResponse.ProtoReflect.Descriptor instead.
+func (*FetchSourceResponse) Descriptor() ([]byte, []int) {
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *FetchSourceResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *FetchSourceResponse) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *FetchSourceResponse) GetRawMarkdown() string {
+	if x != nil {
+		return x.RawMarkdown
+	}
+	return ""
+}
+
+func (x *FetchSourceResponse) GetStatus() v1.PostStatus {
+	if x != nil {
+		return x.Status
+	}
+	return v1.PostStatus(0)
+}
+
+func (x *FetchSourceResponse) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+// [内部使用] 列出所有草稿和已发布文章 (管理后台用)
+type ListDraftsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Keyword       string                 `protobuf:"bytes,3,opt,name=keyword,proto3" json:"keyword,omitempty"` // 搜标题/内容
+	CategoryId    int64                  `protobuf:"varint,4,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
+	Status        v1.PostStatus          `protobuf:"varint,5,opt,name=status,proto3,enum=bifrost.content.v1.PostStatus" json:"status,omitempty"` // 可筛选状态 (DRAFT, PUBLISHED, ARCHIVED)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDraftsRequest) Reset() {
+	*x = ListDraftsRequest{}
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDraftsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDraftsRequest) ProtoMessage() {}
+
+func (x *ListDraftsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDraftsRequest.ProtoReflect.Descriptor instead.
+func (*ListDraftsRequest) Descriptor() ([]byte, []int) {
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListDraftsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListDraftsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListDraftsRequest) GetKeyword() string {
+	if x != nil {
+		return x.Keyword
+	}
+	return ""
+}
+
+func (x *ListDraftsRequest) GetCategoryId() int64 {
+	if x != nil {
+		return x.CategoryId
+	}
+	return 0
+}
+
+func (x *ListDraftsRequest) GetStatus() v1.PostStatus {
+	if x != nil {
+		return x.Status
+	}
+	return v1.PostStatus(0)
+}
+
+type ListDraftsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Posts         []*v1.Post             `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"` // 直接返回完整 Model
+	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDraftsResponse) Reset() {
+	*x = ListDraftsResponse{}
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDraftsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDraftsResponse) ProtoMessage() {}
+
+func (x *ListDraftsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDraftsResponse.ProtoReflect.Descriptor instead.
+func (*ListDraftsResponse) Descriptor() ([]byte, []int) {
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListDraftsResponse) GetPosts() []*v1.Post {
+	if x != nil {
+		return x.Posts
+	}
+	return nil
+}
+
+func (x *ListDraftsResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+// 请求定义 (兼容旧的 ListPosts，但已重命名为 ListDrafts)
 type ListPostsRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Page     int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
@@ -1064,7 +1314,7 @@ type ListPostsRequest struct {
 
 func (x *ListPostsRequest) Reset() {
 	*x = ListPostsRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[18]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1076,7 +1326,7 @@ func (x *ListPostsRequest) String() string {
 func (*ListPostsRequest) ProtoMessage() {}
 
 func (x *ListPostsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[18]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1089,7 +1339,7 @@ func (x *ListPostsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPostsRequest.ProtoReflect.Descriptor instead.
 func (*ListPostsRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{18}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListPostsRequest) GetPage() int32 {
@@ -1137,7 +1387,7 @@ type ListPostsResponse struct {
 
 func (x *ListPostsResponse) Reset() {
 	*x = ListPostsResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[19]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1149,7 +1399,7 @@ func (x *ListPostsResponse) String() string {
 func (*ListPostsResponse) ProtoMessage() {}
 
 func (x *ListPostsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[19]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1162,7 +1412,7 @@ func (x *ListPostsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPostsResponse.ProtoReflect.Descriptor instead.
 func (*ListPostsResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{19}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListPostsResponse) GetPosts() []*v1.Post {
@@ -1191,7 +1441,7 @@ type CreateCommentRequest struct {
 
 func (x *CreateCommentRequest) Reset() {
 	*x = CreateCommentRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[20]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1453,7 @@ func (x *CreateCommentRequest) String() string {
 func (*CreateCommentRequest) ProtoMessage() {}
 
 func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[20]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1466,7 @@ func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommentRequest.ProtoReflect.Descriptor instead.
 func (*CreateCommentRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{20}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CreateCommentRequest) GetPostId() int64 {
@@ -1250,7 +1500,7 @@ type CreateCommentResponse struct {
 
 func (x *CreateCommentResponse) Reset() {
 	*x = CreateCommentResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[21]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1512,7 @@ func (x *CreateCommentResponse) String() string {
 func (*CreateCommentResponse) ProtoMessage() {}
 
 func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[21]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1525,7 @@ func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommentResponse.ProtoReflect.Descriptor instead.
 func (*CreateCommentResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{21}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CreateCommentResponse) GetCommentId() int64 {
@@ -1301,7 +1551,7 @@ type DeleteCommentRequest struct {
 
 func (x *DeleteCommentRequest) Reset() {
 	*x = DeleteCommentRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[22]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1313,7 +1563,7 @@ func (x *DeleteCommentRequest) String() string {
 func (*DeleteCommentRequest) ProtoMessage() {}
 
 func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[22]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1326,7 +1576,7 @@ func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCommentRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{22}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DeleteCommentRequest) GetCommentId() int64 {
@@ -1345,7 +1595,7 @@ type DeleteCommentResponse struct {
 
 func (x *DeleteCommentResponse) Reset() {
 	*x = DeleteCommentResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[23]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1357,7 +1607,7 @@ func (x *DeleteCommentResponse) String() string {
 func (*DeleteCommentResponse) ProtoMessage() {}
 
 func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[23]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1370,7 +1620,7 @@ func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCommentResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{23}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *DeleteCommentResponse) GetSuccess() bool {
@@ -1389,7 +1639,7 @@ type DeleteTagRequest struct {
 
 func (x *DeleteTagRequest) Reset() {
 	*x = DeleteTagRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[24]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1401,7 +1651,7 @@ func (x *DeleteTagRequest) String() string {
 func (*DeleteTagRequest) ProtoMessage() {}
 
 func (x *DeleteTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[24]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1414,7 +1664,7 @@ func (x *DeleteTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTagRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTagRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{24}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *DeleteTagRequest) GetTagId() int64 {
@@ -1433,7 +1683,7 @@ type DeleteTagResponse struct {
 
 func (x *DeleteTagResponse) Reset() {
 	*x = DeleteTagResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[25]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1445,7 +1695,7 @@ func (x *DeleteTagResponse) String() string {
 func (*DeleteTagResponse) ProtoMessage() {}
 
 func (x *DeleteTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[25]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1458,7 +1708,7 @@ func (x *DeleteTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTagResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTagResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{25}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *DeleteTagResponse) GetSuccess() bool {
@@ -1480,7 +1730,7 @@ type CreateCategoryRequest struct {
 
 func (x *CreateCategoryRequest) Reset() {
 	*x = CreateCategoryRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[26]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1492,7 +1742,7 @@ func (x *CreateCategoryRequest) String() string {
 func (*CreateCategoryRequest) ProtoMessage() {}
 
 func (x *CreateCategoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[26]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1505,7 +1755,7 @@ func (x *CreateCategoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCategoryRequest.ProtoReflect.Descriptor instead.
 func (*CreateCategoryRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{26}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *CreateCategoryRequest) GetName() string {
@@ -1538,7 +1788,7 @@ type CreateCategoryResponse struct {
 
 func (x *CreateCategoryResponse) Reset() {
 	*x = CreateCategoryResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[27]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1550,7 +1800,7 @@ func (x *CreateCategoryResponse) String() string {
 func (*CreateCategoryResponse) ProtoMessage() {}
 
 func (x *CreateCategoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[27]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1563,7 +1813,7 @@ func (x *CreateCategoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCategoryResponse.ProtoReflect.Descriptor instead.
 func (*CreateCategoryResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{27}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *CreateCategoryResponse) GetCategoryId() int64 {
@@ -1585,7 +1835,7 @@ type UpdateCategoryRequest struct {
 
 func (x *UpdateCategoryRequest) Reset() {
 	*x = UpdateCategoryRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[28]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1597,7 +1847,7 @@ func (x *UpdateCategoryRequest) String() string {
 func (*UpdateCategoryRequest) ProtoMessage() {}
 
 func (x *UpdateCategoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[28]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1610,7 +1860,7 @@ func (x *UpdateCategoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCategoryRequest.ProtoReflect.Descriptor instead.
 func (*UpdateCategoryRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{28}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *UpdateCategoryRequest) GetCategoryId() int64 {
@@ -1650,7 +1900,7 @@ type UpdateCategoryResponse struct {
 
 func (x *UpdateCategoryResponse) Reset() {
 	*x = UpdateCategoryResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[29]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1662,7 +1912,7 @@ func (x *UpdateCategoryResponse) String() string {
 func (*UpdateCategoryResponse) ProtoMessage() {}
 
 func (x *UpdateCategoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[29]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1675,7 +1925,7 @@ func (x *UpdateCategoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCategoryResponse.ProtoReflect.Descriptor instead.
 func (*UpdateCategoryResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{29}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *UpdateCategoryResponse) GetSuccess() bool {
@@ -1694,7 +1944,7 @@ type DeleteCategoryRequest struct {
 
 func (x *DeleteCategoryRequest) Reset() {
 	*x = DeleteCategoryRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[30]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1706,7 +1956,7 @@ func (x *DeleteCategoryRequest) String() string {
 func (*DeleteCategoryRequest) ProtoMessage() {}
 
 func (x *DeleteCategoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[30]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1719,7 +1969,7 @@ func (x *DeleteCategoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCategoryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCategoryRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{30}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DeleteCategoryRequest) GetCategoryId() int64 {
@@ -1738,7 +1988,7 @@ type DeleteCategoryResponse struct {
 
 func (x *DeleteCategoryResponse) Reset() {
 	*x = DeleteCategoryResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[31]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1750,7 +2000,7 @@ func (x *DeleteCategoryResponse) String() string {
 func (*DeleteCategoryResponse) ProtoMessage() {}
 
 func (x *DeleteCategoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[31]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1763,7 +2013,7 @@ func (x *DeleteCategoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCategoryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCategoryResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{31}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DeleteCategoryResponse) GetSuccess() bool {
@@ -1781,7 +2031,7 @@ type ListCategoriesRequest struct {
 
 func (x *ListCategoriesRequest) Reset() {
 	*x = ListCategoriesRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[32]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1793,7 +2043,7 @@ func (x *ListCategoriesRequest) String() string {
 func (*ListCategoriesRequest) ProtoMessage() {}
 
 func (x *ListCategoriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[32]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1806,7 +2056,7 @@ func (x *ListCategoriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCategoriesRequest.ProtoReflect.Descriptor instead.
 func (*ListCategoriesRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{32}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{36}
 }
 
 type ListCategoriesResponse struct {
@@ -1818,7 +2068,7 @@ type ListCategoriesResponse struct {
 
 func (x *ListCategoriesResponse) Reset() {
 	*x = ListCategoriesResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[33]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1830,7 +2080,7 @@ func (x *ListCategoriesResponse) String() string {
 func (*ListCategoriesResponse) ProtoMessage() {}
 
 func (x *ListCategoriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[33]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1843,7 +2093,7 @@ func (x *ListCategoriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCategoriesResponse.ProtoReflect.Descriptor instead.
 func (*ListCategoriesResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{33}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ListCategoriesResponse) GetCategories() []*v1.Category {
@@ -1864,7 +2114,7 @@ type GetUploadTicketRequest struct {
 
 func (x *GetUploadTicketRequest) Reset() {
 	*x = GetUploadTicketRequest{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[34]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1876,7 +2126,7 @@ func (x *GetUploadTicketRequest) String() string {
 func (*GetUploadTicketRequest) ProtoMessage() {}
 
 func (x *GetUploadTicketRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[34]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1889,7 +2139,7 @@ func (x *GetUploadTicketRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadTicketRequest.ProtoReflect.Descriptor instead.
 func (*GetUploadTicketRequest) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{34}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetUploadTicketRequest) GetFilename() string {
@@ -1916,7 +2166,7 @@ type GetUploadTicketResponse struct {
 
 func (x *GetUploadTicketResponse) Reset() {
 	*x = GetUploadTicketResponse{}
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[35]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1928,7 +2178,7 @@ func (x *GetUploadTicketResponse) String() string {
 func (*GetUploadTicketResponse) ProtoMessage() {}
 
 func (x *GetUploadTicketResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[35]
+	mi := &file_api_content_v1_nexus_nexus_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1941,7 +2191,7 @@ func (x *GetUploadTicketResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadTicketResponse.ProtoReflect.Descriptor instead.
 func (*GetUploadTicketResponse) Descriptor() ([]byte, []int) {
-	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{35}
+	return file_api_content_v1_nexus_nexus_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetUploadTicketResponse) GetUploadUrl() string {
@@ -2034,7 +2284,26 @@ const file_api_content_v1_nexus_nexus_proto_rawDesc = "" +
 	"\x0eGetPostRequest\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x03R\x06postId\"?\n" +
 	"\x0fGetPostResponse\x12,\n" +
-	"\x04post\x18\x01 \x01(\v2\x18.bifrost.content.v1.PostR\x04post\"\xb6\x01\n" +
+	"\x04post\x18\x01 \x01(\v2\x18.bifrost.content.v1.PostR\x04post\"-\n" +
+	"\x12FetchSourceRequest\x12\x17\n" +
+	"\apost_id\x18\x01 \x01(\x03R\x06postId\"\xb0\x01\n" +
+	"\x13FetchSourceResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12!\n" +
+	"\fraw_markdown\x18\x03 \x01(\tR\vrawMarkdown\x126\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x1e.bifrost.content.v1.PostStatusR\x06status\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\x03R\aversion\"\xb7\x01\n" +
+	"\x11ListDraftsRequest\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x18\n" +
+	"\akeyword\x18\x03 \x01(\tR\akeyword\x12\x1f\n" +
+	"\vcategory_id\x18\x04 \x01(\x03R\n" +
+	"categoryId\x126\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x1e.bifrost.content.v1.PostStatusR\x06status\"e\n" +
+	"\x12ListDraftsResponse\x12.\n" +
+	"\x05posts\x18\x01 \x03(\v2\x18.bifrost.content.v1.PostR\x05posts\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\x05R\n" +
+	"totalCount\"\xb6\x01\n" +
 	"\x10ListPostsRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x18\n" +
@@ -2102,16 +2371,19 @@ const file_api_content_v1_nexus_nexus_proto_rawDesc = "" +
 	"\x0eChangePassword\x12/.bifrost.content.v1.nexus.ChangePasswordRequest\x1a0.bifrost.content.v1.nexus.ChangePasswordResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/v1/users/password\x12\x82\x01\n" +
 	"\n" +
 	"GetProfile\x12+.bifrost.content.v1.nexus.GetProfileRequest\x1a,.bifrost.content.v1.nexus.GetProfileResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/users/profile\x12\x8e\x01\n" +
-	"\rUpdateProfile\x12..bifrost.content.v1.nexus.UpdateProfileRequest\x1a/.bifrost.content.v1.nexus.UpdateProfileResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\x1a\x11/v1/users/profile2\x93\x05\n" +
-	"\vPostService\x12w\n" +
-	"\tListPosts\x12*.bifrost.content.v1.nexus.ListPostsRequest\x1a+.bifrost.content.v1.nexus.ListPostsResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/v1/posts\x12}\n" +
+	"\rUpdateProfile\x12..bifrost.content.v1.nexus.UpdateProfileRequest\x1a/.bifrost.content.v1.nexus.UpdateProfileResponse\"\x1c\x82\xd3\xe4\x93\x02\x16:\x01*\x1a\x11/v1/users/profile2\xc8\x06\n" +
+	"\vPostService\x12{\n" +
 	"\n" +
-	"CreatePost\x12+.bifrost.content.v1.nexus.CreatePostRequest\x1a,.bifrost.content.v1.nexus.CreatePostResponse\"\x14\x82\xd3\xe4\x93\x02\x0e:\x01*\"\t/v1/posts\x12\x87\x01\n" +
+	"ListDrafts\x12+.bifrost.content.v1.nexus.ListDraftsRequest\x1a,.bifrost.content.v1.nexus.ListDraftsResponse\"\x12\x82\xd3\xe4\x93\x02\f\x12\n" +
+	"/v1/drafts\x12\x94\x01\n" +
+	"\vFetchSource\x12,.bifrost.content.v1.nexus.FetchSourceRequest\x1a-.bifrost.content.v1.nexus.FetchSourceResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /v1/admin/posts/{post_id}/source\x12\x83\x01\n" +
 	"\n" +
-	"UpdatePost\x12+.bifrost.content.v1.nexus.UpdatePostRequest\x1a,.bifrost.content.v1.nexus.UpdatePostResponse\"\x1e\x82\xd3\xe4\x93\x02\x18:\x01*\x1a\x13/v1/posts/{post_id}\x12\x84\x01\n" +
+	"CreatePost\x12+.bifrost.content.v1.nexus.CreatePostRequest\x1a,.bifrost.content.v1.nexus.CreatePostResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/v1/admin/posts\x12\x8d\x01\n" +
 	"\n" +
-	"DeletePost\x12+.bifrost.content.v1.nexus.DeletePostRequest\x1a,.bifrost.content.v1.nexus.DeletePostResponse\"\x1b\x82\xd3\xe4\x93\x02\x15*\x13/v1/posts/{post_id}\x12{\n" +
-	"\aGetPost\x12(.bifrost.content.v1.nexus.GetPostRequest\x1a).bifrost.content.v1.nexus.GetPostResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/v1/posts/{post_id}2\xc2\x02\n" +
+	"UpdatePost\x12+.bifrost.content.v1.nexus.UpdatePostRequest\x1a,.bifrost.content.v1.nexus.UpdatePostResponse\"$\x82\xd3\xe4\x93\x02\x1e:\x01*\x1a\x19/v1/admin/posts/{post_id}\x12\x8a\x01\n" +
+	"\n" +
+	"DeletePost\x12+.bifrost.content.v1.nexus.DeletePostRequest\x1a,.bifrost.content.v1.nexus.DeletePostResponse\"!\x82\xd3\xe4\x93\x02\x1b*\x19/v1/admin/posts/{post_id}\x12\x81\x01\n" +
+	"\aGetPost\x12(.bifrost.content.v1.nexus.GetPostRequest\x1a).bifrost.content.v1.nexus.GetPostResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/admin/posts/{post_id}2\xc2\x02\n" +
 	"\x0eCommentService\x12\x99\x01\n" +
 	"\rCreateComment\x12..bifrost.content.v1.nexus.CreateCommentRequest\x1a/.bifrost.content.v1.nexus.CreateCommentResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/v1/posts/{post_id}/comments\x12\x93\x01\n" +
 	"\rDeleteComment\x12..bifrost.content.v1.nexus.DeleteCommentRequest\x1a/.bifrost.content.v1.nexus.DeleteCommentResponse\"!\x82\xd3\xe4\x93\x02\x1b*\x19/v1/comments/{comment_id}2\x8d\x01\n" +
@@ -2138,7 +2410,7 @@ func file_api_content_v1_nexus_nexus_proto_rawDescGZIP() []byte {
 	return file_api_content_v1_nexus_nexus_proto_rawDescData
 }
 
-var file_api_content_v1_nexus_nexus_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_api_content_v1_nexus_nexus_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_api_content_v1_nexus_nexus_proto_goTypes = []any{
 	(*RegisterRequest)(nil),         // 0: bifrost.content.v1.nexus.RegisterRequest
 	(*RegisterResponse)(nil),        // 1: bifrost.content.v1.nexus.RegisterResponse
@@ -2158,78 +2430,87 @@ var file_api_content_v1_nexus_nexus_proto_goTypes = []any{
 	(*DeletePostResponse)(nil),      // 15: bifrost.content.v1.nexus.DeletePostResponse
 	(*GetPostRequest)(nil),          // 16: bifrost.content.v1.nexus.GetPostRequest
 	(*GetPostResponse)(nil),         // 17: bifrost.content.v1.nexus.GetPostResponse
-	(*ListPostsRequest)(nil),        // 18: bifrost.content.v1.nexus.ListPostsRequest
-	(*ListPostsResponse)(nil),       // 19: bifrost.content.v1.nexus.ListPostsResponse
-	(*CreateCommentRequest)(nil),    // 20: bifrost.content.v1.nexus.CreateCommentRequest
-	(*CreateCommentResponse)(nil),   // 21: bifrost.content.v1.nexus.CreateCommentResponse
-	(*DeleteCommentRequest)(nil),    // 22: bifrost.content.v1.nexus.DeleteCommentRequest
-	(*DeleteCommentResponse)(nil),   // 23: bifrost.content.v1.nexus.DeleteCommentResponse
-	(*DeleteTagRequest)(nil),        // 24: bifrost.content.v1.nexus.DeleteTagRequest
-	(*DeleteTagResponse)(nil),       // 25: bifrost.content.v1.nexus.DeleteTagResponse
-	(*CreateCategoryRequest)(nil),   // 26: bifrost.content.v1.nexus.CreateCategoryRequest
-	(*CreateCategoryResponse)(nil),  // 27: bifrost.content.v1.nexus.CreateCategoryResponse
-	(*UpdateCategoryRequest)(nil),   // 28: bifrost.content.v1.nexus.UpdateCategoryRequest
-	(*UpdateCategoryResponse)(nil),  // 29: bifrost.content.v1.nexus.UpdateCategoryResponse
-	(*DeleteCategoryRequest)(nil),   // 30: bifrost.content.v1.nexus.DeleteCategoryRequest
-	(*DeleteCategoryResponse)(nil),  // 31: bifrost.content.v1.nexus.DeleteCategoryResponse
-	(*ListCategoriesRequest)(nil),   // 32: bifrost.content.v1.nexus.ListCategoriesRequest
-	(*ListCategoriesResponse)(nil),  // 33: bifrost.content.v1.nexus.ListCategoriesResponse
-	(*GetUploadTicketRequest)(nil),  // 34: bifrost.content.v1.nexus.GetUploadTicketRequest
-	(*GetUploadTicketResponse)(nil), // 35: bifrost.content.v1.nexus.GetUploadTicketResponse
-	(v1.PostStatus)(0),              // 36: bifrost.content.v1.PostStatus
-	(*v1.Post)(nil),                 // 37: bifrost.content.v1.Post
-	(v1.CommentStatus)(0),           // 38: bifrost.content.v1.CommentStatus
-	(*v1.Category)(nil),             // 39: bifrost.content.v1.Category
+	(*FetchSourceRequest)(nil),      // 18: bifrost.content.v1.nexus.FetchSourceRequest
+	(*FetchSourceResponse)(nil),     // 19: bifrost.content.v1.nexus.FetchSourceResponse
+	(*ListDraftsRequest)(nil),       // 20: bifrost.content.v1.nexus.ListDraftsRequest
+	(*ListDraftsResponse)(nil),      // 21: bifrost.content.v1.nexus.ListDraftsResponse
+	(*ListPostsRequest)(nil),        // 22: bifrost.content.v1.nexus.ListPostsRequest
+	(*ListPostsResponse)(nil),       // 23: bifrost.content.v1.nexus.ListPostsResponse
+	(*CreateCommentRequest)(nil),    // 24: bifrost.content.v1.nexus.CreateCommentRequest
+	(*CreateCommentResponse)(nil),   // 25: bifrost.content.v1.nexus.CreateCommentResponse
+	(*DeleteCommentRequest)(nil),    // 26: bifrost.content.v1.nexus.DeleteCommentRequest
+	(*DeleteCommentResponse)(nil),   // 27: bifrost.content.v1.nexus.DeleteCommentResponse
+	(*DeleteTagRequest)(nil),        // 28: bifrost.content.v1.nexus.DeleteTagRequest
+	(*DeleteTagResponse)(nil),       // 29: bifrost.content.v1.nexus.DeleteTagResponse
+	(*CreateCategoryRequest)(nil),   // 30: bifrost.content.v1.nexus.CreateCategoryRequest
+	(*CreateCategoryResponse)(nil),  // 31: bifrost.content.v1.nexus.CreateCategoryResponse
+	(*UpdateCategoryRequest)(nil),   // 32: bifrost.content.v1.nexus.UpdateCategoryRequest
+	(*UpdateCategoryResponse)(nil),  // 33: bifrost.content.v1.nexus.UpdateCategoryResponse
+	(*DeleteCategoryRequest)(nil),   // 34: bifrost.content.v1.nexus.DeleteCategoryRequest
+	(*DeleteCategoryResponse)(nil),  // 35: bifrost.content.v1.nexus.DeleteCategoryResponse
+	(*ListCategoriesRequest)(nil),   // 36: bifrost.content.v1.nexus.ListCategoriesRequest
+	(*ListCategoriesResponse)(nil),  // 37: bifrost.content.v1.nexus.ListCategoriesResponse
+	(*GetUploadTicketRequest)(nil),  // 38: bifrost.content.v1.nexus.GetUploadTicketRequest
+	(*GetUploadTicketResponse)(nil), // 39: bifrost.content.v1.nexus.GetUploadTicketResponse
+	(v1.PostStatus)(0),              // 40: bifrost.content.v1.PostStatus
+	(*v1.Post)(nil),                 // 41: bifrost.content.v1.Post
+	(v1.CommentStatus)(0),           // 42: bifrost.content.v1.CommentStatus
+	(*v1.Category)(nil),             // 43: bifrost.content.v1.Category
 }
 var file_api_content_v1_nexus_nexus_proto_depIdxs = []int32{
-	36, // 0: bifrost.content.v1.nexus.CreatePostRequest.status:type_name -> bifrost.content.v1.PostStatus
-	36, // 1: bifrost.content.v1.nexus.UpdatePostRequest.status:type_name -> bifrost.content.v1.PostStatus
-	37, // 2: bifrost.content.v1.nexus.GetPostResponse.post:type_name -> bifrost.content.v1.Post
-	36, // 3: bifrost.content.v1.nexus.ListPostsRequest.status:type_name -> bifrost.content.v1.PostStatus
-	37, // 4: bifrost.content.v1.nexus.ListPostsResponse.posts:type_name -> bifrost.content.v1.Post
-	38, // 5: bifrost.content.v1.nexus.CreateCommentResponse.status:type_name -> bifrost.content.v1.CommentStatus
-	39, // 6: bifrost.content.v1.nexus.ListCategoriesResponse.categories:type_name -> bifrost.content.v1.Category
-	0,  // 7: bifrost.content.v1.nexus.UserService.Register:input_type -> bifrost.content.v1.nexus.RegisterRequest
-	2,  // 8: bifrost.content.v1.nexus.UserService.Login:input_type -> bifrost.content.v1.nexus.LoginRequest
-	4,  // 9: bifrost.content.v1.nexus.UserService.ChangePassword:input_type -> bifrost.content.v1.nexus.ChangePasswordRequest
-	6,  // 10: bifrost.content.v1.nexus.UserService.GetProfile:input_type -> bifrost.content.v1.nexus.GetProfileRequest
-	8,  // 11: bifrost.content.v1.nexus.UserService.UpdateProfile:input_type -> bifrost.content.v1.nexus.UpdateProfileRequest
-	18, // 12: bifrost.content.v1.nexus.PostService.ListPosts:input_type -> bifrost.content.v1.nexus.ListPostsRequest
-	10, // 13: bifrost.content.v1.nexus.PostService.CreatePost:input_type -> bifrost.content.v1.nexus.CreatePostRequest
-	12, // 14: bifrost.content.v1.nexus.PostService.UpdatePost:input_type -> bifrost.content.v1.nexus.UpdatePostRequest
-	14, // 15: bifrost.content.v1.nexus.PostService.DeletePost:input_type -> bifrost.content.v1.nexus.DeletePostRequest
-	16, // 16: bifrost.content.v1.nexus.PostService.GetPost:input_type -> bifrost.content.v1.nexus.GetPostRequest
-	20, // 17: bifrost.content.v1.nexus.CommentService.CreateComment:input_type -> bifrost.content.v1.nexus.CreateCommentRequest
-	22, // 18: bifrost.content.v1.nexus.CommentService.DeleteComment:input_type -> bifrost.content.v1.nexus.DeleteCommentRequest
-	24, // 19: bifrost.content.v1.nexus.TagService.DeleteTag:input_type -> bifrost.content.v1.nexus.DeleteTagRequest
-	26, // 20: bifrost.content.v1.nexus.CategoryService.CreateCategory:input_type -> bifrost.content.v1.nexus.CreateCategoryRequest
-	28, // 21: bifrost.content.v1.nexus.CategoryService.UpdateCategory:input_type -> bifrost.content.v1.nexus.UpdateCategoryRequest
-	30, // 22: bifrost.content.v1.nexus.CategoryService.DeleteCategory:input_type -> bifrost.content.v1.nexus.DeleteCategoryRequest
-	32, // 23: bifrost.content.v1.nexus.CategoryService.ListCategories:input_type -> bifrost.content.v1.nexus.ListCategoriesRequest
-	34, // 24: bifrost.content.v1.nexus.StorageService.GetUploadTicket:input_type -> bifrost.content.v1.nexus.GetUploadTicketRequest
-	1,  // 25: bifrost.content.v1.nexus.UserService.Register:output_type -> bifrost.content.v1.nexus.RegisterResponse
-	3,  // 26: bifrost.content.v1.nexus.UserService.Login:output_type -> bifrost.content.v1.nexus.LoginResponse
-	5,  // 27: bifrost.content.v1.nexus.UserService.ChangePassword:output_type -> bifrost.content.v1.nexus.ChangePasswordResponse
-	7,  // 28: bifrost.content.v1.nexus.UserService.GetProfile:output_type -> bifrost.content.v1.nexus.GetProfileResponse
-	9,  // 29: bifrost.content.v1.nexus.UserService.UpdateProfile:output_type -> bifrost.content.v1.nexus.UpdateProfileResponse
-	19, // 30: bifrost.content.v1.nexus.PostService.ListPosts:output_type -> bifrost.content.v1.nexus.ListPostsResponse
-	11, // 31: bifrost.content.v1.nexus.PostService.CreatePost:output_type -> bifrost.content.v1.nexus.CreatePostResponse
-	13, // 32: bifrost.content.v1.nexus.PostService.UpdatePost:output_type -> bifrost.content.v1.nexus.UpdatePostResponse
-	15, // 33: bifrost.content.v1.nexus.PostService.DeletePost:output_type -> bifrost.content.v1.nexus.DeletePostResponse
-	17, // 34: bifrost.content.v1.nexus.PostService.GetPost:output_type -> bifrost.content.v1.nexus.GetPostResponse
-	21, // 35: bifrost.content.v1.nexus.CommentService.CreateComment:output_type -> bifrost.content.v1.nexus.CreateCommentResponse
-	23, // 36: bifrost.content.v1.nexus.CommentService.DeleteComment:output_type -> bifrost.content.v1.nexus.DeleteCommentResponse
-	25, // 37: bifrost.content.v1.nexus.TagService.DeleteTag:output_type -> bifrost.content.v1.nexus.DeleteTagResponse
-	27, // 38: bifrost.content.v1.nexus.CategoryService.CreateCategory:output_type -> bifrost.content.v1.nexus.CreateCategoryResponse
-	29, // 39: bifrost.content.v1.nexus.CategoryService.UpdateCategory:output_type -> bifrost.content.v1.nexus.UpdateCategoryResponse
-	31, // 40: bifrost.content.v1.nexus.CategoryService.DeleteCategory:output_type -> bifrost.content.v1.nexus.DeleteCategoryResponse
-	33, // 41: bifrost.content.v1.nexus.CategoryService.ListCategories:output_type -> bifrost.content.v1.nexus.ListCategoriesResponse
-	35, // 42: bifrost.content.v1.nexus.StorageService.GetUploadTicket:output_type -> bifrost.content.v1.nexus.GetUploadTicketResponse
-	25, // [25:43] is the sub-list for method output_type
-	7,  // [7:25] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	40, // 0: bifrost.content.v1.nexus.CreatePostRequest.status:type_name -> bifrost.content.v1.PostStatus
+	40, // 1: bifrost.content.v1.nexus.UpdatePostRequest.status:type_name -> bifrost.content.v1.PostStatus
+	41, // 2: bifrost.content.v1.nexus.GetPostResponse.post:type_name -> bifrost.content.v1.Post
+	40, // 3: bifrost.content.v1.nexus.FetchSourceResponse.status:type_name -> bifrost.content.v1.PostStatus
+	40, // 4: bifrost.content.v1.nexus.ListDraftsRequest.status:type_name -> bifrost.content.v1.PostStatus
+	41, // 5: bifrost.content.v1.nexus.ListDraftsResponse.posts:type_name -> bifrost.content.v1.Post
+	40, // 6: bifrost.content.v1.nexus.ListPostsRequest.status:type_name -> bifrost.content.v1.PostStatus
+	41, // 7: bifrost.content.v1.nexus.ListPostsResponse.posts:type_name -> bifrost.content.v1.Post
+	42, // 8: bifrost.content.v1.nexus.CreateCommentResponse.status:type_name -> bifrost.content.v1.CommentStatus
+	43, // 9: bifrost.content.v1.nexus.ListCategoriesResponse.categories:type_name -> bifrost.content.v1.Category
+	0,  // 10: bifrost.content.v1.nexus.UserService.Register:input_type -> bifrost.content.v1.nexus.RegisterRequest
+	2,  // 11: bifrost.content.v1.nexus.UserService.Login:input_type -> bifrost.content.v1.nexus.LoginRequest
+	4,  // 12: bifrost.content.v1.nexus.UserService.ChangePassword:input_type -> bifrost.content.v1.nexus.ChangePasswordRequest
+	6,  // 13: bifrost.content.v1.nexus.UserService.GetProfile:input_type -> bifrost.content.v1.nexus.GetProfileRequest
+	8,  // 14: bifrost.content.v1.nexus.UserService.UpdateProfile:input_type -> bifrost.content.v1.nexus.UpdateProfileRequest
+	20, // 15: bifrost.content.v1.nexus.PostService.ListDrafts:input_type -> bifrost.content.v1.nexus.ListDraftsRequest
+	18, // 16: bifrost.content.v1.nexus.PostService.FetchSource:input_type -> bifrost.content.v1.nexus.FetchSourceRequest
+	10, // 17: bifrost.content.v1.nexus.PostService.CreatePost:input_type -> bifrost.content.v1.nexus.CreatePostRequest
+	12, // 18: bifrost.content.v1.nexus.PostService.UpdatePost:input_type -> bifrost.content.v1.nexus.UpdatePostRequest
+	14, // 19: bifrost.content.v1.nexus.PostService.DeletePost:input_type -> bifrost.content.v1.nexus.DeletePostRequest
+	16, // 20: bifrost.content.v1.nexus.PostService.GetPost:input_type -> bifrost.content.v1.nexus.GetPostRequest
+	24, // 21: bifrost.content.v1.nexus.CommentService.CreateComment:input_type -> bifrost.content.v1.nexus.CreateCommentRequest
+	26, // 22: bifrost.content.v1.nexus.CommentService.DeleteComment:input_type -> bifrost.content.v1.nexus.DeleteCommentRequest
+	28, // 23: bifrost.content.v1.nexus.TagService.DeleteTag:input_type -> bifrost.content.v1.nexus.DeleteTagRequest
+	30, // 24: bifrost.content.v1.nexus.CategoryService.CreateCategory:input_type -> bifrost.content.v1.nexus.CreateCategoryRequest
+	32, // 25: bifrost.content.v1.nexus.CategoryService.UpdateCategory:input_type -> bifrost.content.v1.nexus.UpdateCategoryRequest
+	34, // 26: bifrost.content.v1.nexus.CategoryService.DeleteCategory:input_type -> bifrost.content.v1.nexus.DeleteCategoryRequest
+	36, // 27: bifrost.content.v1.nexus.CategoryService.ListCategories:input_type -> bifrost.content.v1.nexus.ListCategoriesRequest
+	38, // 28: bifrost.content.v1.nexus.StorageService.GetUploadTicket:input_type -> bifrost.content.v1.nexus.GetUploadTicketRequest
+	1,  // 29: bifrost.content.v1.nexus.UserService.Register:output_type -> bifrost.content.v1.nexus.RegisterResponse
+	3,  // 30: bifrost.content.v1.nexus.UserService.Login:output_type -> bifrost.content.v1.nexus.LoginResponse
+	5,  // 31: bifrost.content.v1.nexus.UserService.ChangePassword:output_type -> bifrost.content.v1.nexus.ChangePasswordResponse
+	7,  // 32: bifrost.content.v1.nexus.UserService.GetProfile:output_type -> bifrost.content.v1.nexus.GetProfileResponse
+	9,  // 33: bifrost.content.v1.nexus.UserService.UpdateProfile:output_type -> bifrost.content.v1.nexus.UpdateProfileResponse
+	21, // 34: bifrost.content.v1.nexus.PostService.ListDrafts:output_type -> bifrost.content.v1.nexus.ListDraftsResponse
+	19, // 35: bifrost.content.v1.nexus.PostService.FetchSource:output_type -> bifrost.content.v1.nexus.FetchSourceResponse
+	11, // 36: bifrost.content.v1.nexus.PostService.CreatePost:output_type -> bifrost.content.v1.nexus.CreatePostResponse
+	13, // 37: bifrost.content.v1.nexus.PostService.UpdatePost:output_type -> bifrost.content.v1.nexus.UpdatePostResponse
+	15, // 38: bifrost.content.v1.nexus.PostService.DeletePost:output_type -> bifrost.content.v1.nexus.DeletePostResponse
+	17, // 39: bifrost.content.v1.nexus.PostService.GetPost:output_type -> bifrost.content.v1.nexus.GetPostResponse
+	25, // 40: bifrost.content.v1.nexus.CommentService.CreateComment:output_type -> bifrost.content.v1.nexus.CreateCommentResponse
+	27, // 41: bifrost.content.v1.nexus.CommentService.DeleteComment:output_type -> bifrost.content.v1.nexus.DeleteCommentResponse
+	29, // 42: bifrost.content.v1.nexus.TagService.DeleteTag:output_type -> bifrost.content.v1.nexus.DeleteTagResponse
+	31, // 43: bifrost.content.v1.nexus.CategoryService.CreateCategory:output_type -> bifrost.content.v1.nexus.CreateCategoryResponse
+	33, // 44: bifrost.content.v1.nexus.CategoryService.UpdateCategory:output_type -> bifrost.content.v1.nexus.UpdateCategoryResponse
+	35, // 45: bifrost.content.v1.nexus.CategoryService.DeleteCategory:output_type -> bifrost.content.v1.nexus.DeleteCategoryResponse
+	37, // 46: bifrost.content.v1.nexus.CategoryService.ListCategories:output_type -> bifrost.content.v1.nexus.ListCategoriesResponse
+	39, // 47: bifrost.content.v1.nexus.StorageService.GetUploadTicket:output_type -> bifrost.content.v1.nexus.GetUploadTicketResponse
+	29, // [29:48] is the sub-list for method output_type
+	10, // [10:29] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_api_content_v1_nexus_nexus_proto_init() }
@@ -2243,7 +2524,7 @@ func file_api_content_v1_nexus_nexus_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_content_v1_nexus_nexus_proto_rawDesc), len(file_api_content_v1_nexus_nexus_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   6,
 		},

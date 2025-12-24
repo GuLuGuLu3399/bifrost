@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	searchv1 "github.com/gulugulu3399/bifrost/api/search/v1"
+	grpcClient "github.com/gulugulu3399/bifrost/internal/gjallar/infrastructure/grpc"
 	"github.com/gulugulu3399/bifrost/internal/gjallar/middleware"
 	"github.com/gulugulu3399/bifrost/internal/gjallar/router"
 	"github.com/gulugulu3399/bifrost/internal/pkg/config"
@@ -19,6 +21,7 @@ type GjallarServer struct {
 	httpServer *pkghttp.Server
 	nexusConn  *grpc.ClientConn // 持有连接以便关闭
 	beaconConn *grpc.ClientConn
+	mirrorConn *grpc.ClientConn
 }
 
 func New(cfg *config.Config) (*GjallarServer, error) {
@@ -29,6 +32,7 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 	var (
 		nexusConn  *grpc.ClientConn
 		beaconConn *grpc.ClientConn
+		mirrorConn *grpc.ClientConn
 		cleanupErr error
 	)
 	defer func() {
@@ -39,6 +43,9 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 			}
 			if beaconConn != nil {
 				_ = beaconConn.Close()
+			}
+			if mirrorConn != nil {
+				_ = mirrorConn.Close()
 			}
 		}
 	}()
@@ -58,8 +65,18 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 	}
 	beaconConn = bConn
 
+	mConn, err := pkggrpc.NewClient(cfg.RPC.Mirror, l)
+	if err != nil {
+		cleanupErr = err
+		return nil, err
+	}
+	mirrorConn = mConn
+
+	// 创建 Mirror 客户端
+	mirrorClient := grpcClient.NewMirrorClient(searchv1.NewMirrorServiceClient(mirrorConn))
+
 	// 2. 初始化 Router (Gateway)
-	mux, err := router.New(ctx, nexusConn, beaconConn)
+	mux, err := router.New(ctx, nexusConn, beaconConn, mirrorClient)
 	if err != nil {
 		cleanupErr = err
 		return nil, err
@@ -75,7 +92,11 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 	// 应用 pkg 提供的通用基础设施中间件
 	handler = pkghttp.Chain(
 		middleware.Tracing("bifrost-gjallar"), // ✅ Phase 1: 生成 Root Span (必须在最外层)
-		pkghttp.CORS([]string{"*"}, nil, nil), // 允许所有跨域
+		pkghttp.CORS(                           // ✅ 配置 CORS：仅允许前端开发服务器
+			[]string{"http://localhost:3000"},
+			[]string{"GET", "OPTIONS", "POST"},
+			[]string{"Content-Type", "Authorization"},
+		),
 		pkghttp.RequestID(),                   // 生成 RequestID 并注入 Context
 		pkghttp.Logger(),                      // 记录 HTTP 访问日志
 		pkghttp.Recovery(),                    // 防止 Panic 挂掉
@@ -111,6 +132,7 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 		httpServer: srv,
 		nexusConn:  nexusConn,
 		beaconConn: beaconConn,
+		mirrorConn: mirrorConn,
 	}, nil
 }
 
@@ -141,6 +163,12 @@ func (s *GjallarServer) Shutdown(ctx context.Context) error {
 		if err := s.beaconConn.Close(); err != nil {
 			logger.Global().Warn("Failed to close beacon connection", logger.Err(err))
 			errs = append(errs, fmt.Sprintf("beacon close: %v", err))
+		}
+	}
+	if s.mirrorConn != nil {
+		if err := s.mirrorConn.Close(); err != nil {
+			logger.Global().Warn("Failed to close mirror connection", logger.Err(err))
+			errs = append(errs, fmt.Sprintf("mirror close: %v", err))
 		}
 	}
 

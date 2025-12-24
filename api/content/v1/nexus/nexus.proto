@@ -51,19 +51,29 @@ service UserService {
 }
 
 // ==========================================
-// 文章服务 (Post Service)
+// 文章服务 (Post Service) - Admin Only
 // ==========================================
+// 内部使用：此服务仅供管理后台使用，强一致性保证
+// 所有操作均支持全量数据（包括草稿、已发布、已归档状态）
 service PostService {
-  // [新增] 管理端获取文章列表 (无缓存，实时，看全部)
-  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
+  // [强一致性] 管理端获取文章列表 (无缓存，实时，支持所有状态)
+  rpc ListDrafts(ListDraftsRequest) returns (ListDraftsResponse) {
     option (google.api.http) = {
-      get: "/v1/posts"
+      get: "/v1/drafts"
     };
   }
+
+  // [强一致性] 获取文章源码 (返回 raw_markdown 供编辑器使用)
+  rpc FetchSource(FetchSourceRequest) returns (FetchSourceResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/posts/{post_id}/source"
+    };
+  }
+
   // 创建文章
   rpc CreatePost(CreatePostRequest) returns (CreatePostResponse) {
     option (google.api.http) = {
-      post: "/v1/posts"
+      post: "/v1/admin/posts"
       body: "*"
     };
   }
@@ -71,23 +81,22 @@ service PostService {
   // 更新文章 (基本信息 + Markdown)
   rpc UpdatePost(UpdatePostRequest) returns (UpdatePostResponse) {
     option (google.api.http) = {
-      put: "/v1/posts/{post_id}"
+      put: "/v1/admin/posts/{post_id}"
       body: "*"
     };
   }
 
-
   // 删除文章
   rpc DeletePost(DeletePostRequest) returns (DeletePostResponse) {
     option (google.api.http) = {
-      delete: "/v1/posts/{post_id}"
+      delete: "/v1/admin/posts/{post_id}"
     };
   }
 
-  // 获取文章详情 (仅用于"编辑文章"页面的回显，不用于博客前台展示)
+  // [强一致性] 获取文章详情 (仅用于编辑页面回显，包含所有字段)
   rpc GetPost(GetPostRequest) returns (GetPostResponse) {
     option (google.api.http) = {
-      get: "/v1/posts/{post_id}"
+      get: "/v1/admin/posts/{post_id}"
     };
   }
 }
@@ -278,7 +287,35 @@ message GetPostRequest {
 message GetPostResponse {
   Post post = 1;
 }
-// 请求定义 (比 Beacon 的更强大，支持搜状态)
+
+// [内部使用] 获取文章源码 (包含 raw_markdown, status, version)
+message FetchSourceRequest {
+  int64 post_id = 1;
+}
+
+message FetchSourceResponse {
+  int64 id = 1;
+  string title = 2;
+  string raw_markdown = 3;
+  PostStatus status = 4;
+  int64 version = 5; // 用于乐观并发控制
+}
+
+// [内部使用] 列出所有草稿和已发布文章 (管理后台用)
+message ListDraftsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;       // 搜标题/内容
+  int64 category_id = 4;
+  PostStatus status = 5;    // 可筛选状态 (DRAFT, PUBLISHED, ARCHIVED)
+}
+
+message ListDraftsResponse {
+  repeated bifrost.content.v1.Post posts = 1; // 直接返回完整 Model
+  int32 total_count = 2;
+}
+
+// 请求定义 (兼容旧的 ListPosts，但已重命名为 ListDrafts)
 message ListPostsRequest {
   int32 page = 1;
   int32 page_size = 2;

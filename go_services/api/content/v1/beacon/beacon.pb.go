@@ -726,7 +726,7 @@ func (x *UserProfile) GetPostCount() int32 {
 // Post
 type GetPostRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SlugOrId      string                 `protobuf:"bytes,1,opt,name=slug_or_id,json=slugOrId,proto3" json:"slug_or_id,omitempty"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"` // URL 路径参数，唯一的文章别名
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -761,16 +761,16 @@ func (*GetPostRequest) Descriptor() ([]byte, []int) {
 	return file_api_content_v1_beacon_beacon_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetPostRequest) GetSlugOrId() string {
+func (x *GetPostRequest) GetSlug() string {
 	if x != nil {
-		return x.SlugOrId
+		return x.Slug
 	}
 	return ""
 }
 
 type GetPostResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Post          *PostDetail            `protobuf:"bytes,1,opt,name=post,proto3" json:"post,omitempty"` // ✅ 修复：使用 PostDetail
+	Post          *PostDetail            `protobuf:"bytes,1,opt,name=post,proto3" json:"post,omitempty"` // ✅ 确认：返回 PostDetail (html_body, toc_json, published_at, tags)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -817,7 +817,7 @@ type ListPostsRequest struct {
 	Page          *v1.PageRequest        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	CategoryId    int64                  `protobuf:"varint,2,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
 	TagId         int64                  `protobuf:"varint,3,opt,name=tag_id,json=tagId,proto3" json:"tag_id,omitempty"`
-	AuthorId      int64                  `protobuf:"varint,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"` // 移除 status，Beacon 只能查 Published
+	AuthorId      int64                  `protobuf:"varint,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"` // ✅ 移除 status：Beacon 只能查 Published 的文章
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -882,7 +882,7 @@ func (x *ListPostsRequest) GetAuthorId() int64 {
 
 type ListPostsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Posts         []*PostSummary         `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"` // ✅ 修复：使用 PostSummary
+	Posts         []*PostSummary         `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"` // ✅ 确认：返回 PostSummary (title, slug, summary, cover_image, tags)
 	Page          *v1.PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1466,10 +1466,9 @@ const file_api_content_v1_beacon_beacon_proto_rawDesc = "" +
 	"avatar_key\x18\x04 \x01(\tR\tavatarKey\x12\x10\n" +
 	"\x03bio\x18\x05 \x01(\tR\x03bio\x12\x1d\n" +
 	"\n" +
-	"post_count\x18\x06 \x01(\x05R\tpostCount\".\n" +
-	"\x0eGetPostRequest\x12\x1c\n" +
-	"\n" +
-	"slug_or_id\x18\x01 \x01(\tR\bslugOrId\"L\n" +
+	"post_count\x18\x06 \x01(\x05R\tpostCount\"$\n" +
+	"\x0eGetPostRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"L\n" +
 	"\x0fGetPostResponse\x129\n" +
 	"\x04post\x18\x01 \x01(\v2%.bifrost.content.v1.beacon.PostDetailR\x04post\"\x9b\x01\n" +
 	"\x10ListPostsRequest\x122\n" +
@@ -1503,9 +1502,9 @@ const file_api_content_v1_beacon_beacon_proto_rawDesc = "" +
 	"categories\"\x11\n" +
 	"\x0fListTagsRequest\"J\n" +
 	"\x10ListTagsResponse\x126\n" +
-	"\x04tags\x18\x01 \x03(\v2\".bifrost.content.v1.beacon.TagItemR\x04tags2\xbc\a\n" +
-	"\rBeaconService\x12\x80\x01\n" +
-	"\aGetPost\x12).bifrost.content.v1.beacon.GetPostRequest\x1a*.bifrost.content.v1.beacon.GetPostResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/posts/{slug_or_id}\x12y\n" +
+	"\x04tags\x18\x01 \x03(\v2\".bifrost.content.v1.beacon.TagItemR\x04tags2\xb5\a\n" +
+	"\rBeaconService\x12z\n" +
+	"\aGetPost\x12).bifrost.content.v1.beacon.GetPostRequest\x1a*.bifrost.content.v1.beacon.GetPostResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/posts/{slug}\x12y\n" +
 	"\tListPosts\x12+.bifrost.content.v1.beacon.ListPostsRequest\x1a,.bifrost.content.v1.beacon.ListPostsResponse\"\x11\x82\xd3\xe4\x93\x02\v\x12\t/v1/posts\x12\x8e\x01\n" +
 	"\rBatchGetPosts\x12/.bifrost.content.v1.beacon.BatchGetPostsRequest\x1a0.bifrost.content.v1.beacon.BatchGetPostsResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/v1/posts:batch\x12\x95\x01\n" +
 	"\fListComments\x12..bifrost.content.v1.beacon.ListCommentsRequest\x1a/.bifrost.content.v1.beacon.ListCommentsResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/posts/{post_id}/comments\x12}\n" +

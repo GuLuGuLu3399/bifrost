@@ -4,6 +4,7 @@ use common::search::{
     DebugIndexRequest, DebugIndexResponse, SearchRequest, SearchResponse, SuggestRequest,
     SuggestResponse,
 };
+use common::ctx::ContextData;
 use std::sync::Arc;
 use std::time::Instant;
 use tonic::{Request, Response, Status};
@@ -36,6 +37,16 @@ impl MirrorService for GrpcServer {
         let start = Instant::now();
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         let req = request.into_inner();
 
         // 1. 参数校验与默认值
@@ -93,6 +104,16 @@ impl MirrorService for GrpcServer {
         let start = Instant::now();
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         let _req = request.into_inner();
 
         // TODO: 使用 Tantivy 的 TermDictionary/FST 实现前缀匹配

@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts (will be rebuilt in Docker)
+target/
+bin/
+*.exe
+
+# Test files
+*_test.go
+**/*_test.go
+test/
+tests/
+
+# Development
+.env
+.env.local
+*.local
+
+# Database
+*.db
+*.sqlite
+
+# Node (if any frontend tools)
+node_modules/

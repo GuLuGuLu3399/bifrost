@@ -20,7 +20,8 @@ type PostListFilter struct {
 
 type PostRepo interface {
 	// GetPost 获取详情 (Cache-Aside)
-	GetPost(ctx context.Context, slugOrId string) (*beaconv1.PostDetail, error)
+	// 参数: slug 为文章的 URL 别名
+	GetPost(ctx context.Context, slug string) (*beaconv1.PostDetail, error)
 	// ListPosts 获取列表 (Direct DB)
 	ListPosts(ctx context.Context, filter *PostListFilter) ([]*beaconv1.PostSummary, int64, error)
 	// BatchGetPosts 批量获取 (Search 聚合用)

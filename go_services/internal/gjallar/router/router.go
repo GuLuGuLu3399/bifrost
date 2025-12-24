@@ -9,12 +9,14 @@ import (
 
 	beaconv1 "github.com/gulugulu3399/bifrost/api/content/v1/beacon"
 	nexusv1 "github.com/gulugulu3399/bifrost/api/content/v1/nexus"
+	"github.com/gulugulu3399/bifrost/internal/gjallar/handler"
+	grpcClient "github.com/gulugulu3399/bifrost/internal/gjallar/infrastructure/grpc"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
 )
 
 // New 创建 HTTP Router
 // 使用 gRPC Gateway 自动生成的 Register*Handler 适配器
-func New(ctx context.Context, nexusConn *grpc.ClientConn, beaconConn *grpc.ClientConn) (http.Handler, error) {
+func New(ctx context.Context, nexusConn *grpc.ClientConn, beaconConn *grpc.ClientConn, mirrorClient *grpcClient.MirrorClient) (http.Handler, error) {
 	mux := runtime.NewServeMux(
 		// 错误处理中间件
 		runtime.WithErrorHandler(customErrorHandler),
@@ -58,7 +60,21 @@ func New(ctx context.Context, nexusConn *grpc.ClientConn, beaconConn *grpc.Clien
 		return nil, err
 	}
 
-	return mux, nil
+	// 创建搜索处理器（使用 Mirror 客户端）
+	searchHandler := handler.NewSearchHandler(mirrorClient)
+	suggestHandler := handler.NewSuggestHandler(mirrorClient)
+
+	// 创建一个多路复用器来组合 gRPC Gateway 和自定义 HTTP 处理器
+	rootMux := http.NewServeMux()
+	
+	// 注册搜索端点
+	rootMux.Handle("/v1/search", searchHandler)
+	rootMux.Handle("/v1/search/suggest", suggestHandler)
+	
+	// 其他所有路由由 gRPC Gateway 处理
+	rootMux.Handle("/", mux)
+
+	return rootMux, nil
 }
 
 // customErrorHandler 自定义错误处理

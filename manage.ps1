@@ -1,16 +1,23 @@
 ﻿<#
 .SYNOPSIS
-  Bifrost 运维脚本 (精简版)
+  Bifrost 统一运维脚本
 .DESCRIPTION
-  提供核心运维命令：proto-lint、proto-gen、build-go、format、clean
+  提供开发、构建、Docker 管理等全部运维命令
   使用 GitHub 风格图标和中文界面
 #>
 
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('help', 'proto-lint', 'proto-gen', 'build-go', 'format', 'clean')]
-    [string]$Command = 'help'
+    [ValidateSet('help', 'proto-lint', 'proto-gen', 'build-go', 'format', 'clean',
+        'docker-build', 'docker-build-go', 'docker-build-rust', 
+        'docker-up', 'docker-up-infra', 'docker-up-go', 'docker-up-rust',
+        'docker-down', 'docker-restart', 'docker-logs', 'docker-ps', 
+        'docker-clean', 'docker-clean-all', 'docker-validate')]
+    [string]$Command = 'help',
+
+    [Parameter(Position = 1)]
+    [string]$Arg1 = ''
 )
 
 Set-StrictMode -Version Latest
@@ -25,20 +32,39 @@ $BinDir = Join-Path $RootPath 'bin'
 # 辅助函数
 function Show-Help {
     Write-Host ''
-    Write-Host "┌─────────────────────────────────────────────┐" -ForegroundColor Cyan
-    Write-Host "│  🚀 Bifrost 运维脚本 (精简版)              │" -ForegroundColor Cyan
-    Write-Host "└─────────────────────────────────────────────┘" -ForegroundColor Cyan
+    Write-Host "┌──────────────────────────────────────────────────┐" -ForegroundColor Cyan
+    Write-Host "│  🚀 Bifrost 统一运维脚本                        │" -ForegroundColor Cyan
+    Write-Host "└──────────────────────────────────────────────────┘" -ForegroundColor Cyan
     Write-Host ''
-    Write-Host "🔧 可用命令:" -ForegroundColor Green
-    Write-Host "  proto-lint    🔍 检查 Proto 文件规范"
-    Write-Host "  proto-gen     📡 生成 Proto 代码 (Protobuf + gRPC + Gateway)"
-    Write-Host "  build-go      ⚙️  构建所有 Go 服务二进制文件"
-    Write-Host "  format        ✨ 格式化 Go/Rust 代码"
-    Write-Host "  clean         🧹 清理构建产物"
+    Write-Host "📦 开发命令:" -ForegroundColor Green
+    Write-Host "  proto-lint         🔍 检查 Proto 文件规范"
+    Write-Host "  proto-gen          📡 生成 Proto 代码 (Protobuf + gRPC + Gateway)"
+    Write-Host "  build-go           ⚙️  构建所有 Go 服务二进制文件"
+    Write-Host "  format             ✨ 格式化 Go/Rust 代码"
+    Write-Host "  clean              🧹 清理构建产物"
+    Write-Host ''
+    Write-Host "🐳 Docker 命令:" -ForegroundColor Green
+    Write-Host "  docker-build       🔨 构建所有 Docker 镜像"
+    Write-Host "  docker-build-go    🔨 仅构建 Go 服务镜像"
+    Write-Host "  docker-build-rust  🔨 仅构建 Rust 服务镜像"
+    Write-Host "  docker-up          ▶️  启动所有服务"
+    Write-Host "  docker-up-infra    ▶️  启动基础设施服务"
+    Write-Host "  docker-up-go       ▶️  启动 Go 服务"
+    Write-Host "  docker-up-rust     ▶️  启动 Rust 服务"
+    Write-Host "  docker-down        ⏹️  停止所有服务"
+    Write-Host "  docker-restart     🔄 重启所有服务"
+    Write-Host "  docker-logs [srv]  📋 查看日志 (可选指定服务名)"
+    Write-Host "  docker-ps          📊 查看服务状态"
+    Write-Host "  docker-clean       🗑️  清理停止的容器和未使用的镜像"
+    Write-Host "  docker-clean-all   🗑️  清理所有数据（包括卷）⚠️"
+    Write-Host "  docker-validate    ✅验证 Docker 环境配置"
     Write-Host ''
     Write-Host "📋 使用示例:" -ForegroundColor Yellow
     Write-Host "  .\manage.ps1 proto-gen"
     Write-Host "  .\manage.ps1 build-go"
+    Write-Host "  .\manage.ps1 docker-build"
+    Write-Host "  .\manage.ps1 docker-up"
+    Write-Host "  .\manage.ps1 docker-logs nexus"
     Write-Host ''
 }
 
@@ -248,6 +274,195 @@ switch ($Command) {
         }
         else {
             Write-Success "清理完成，已清理 $cleanedCount 个目录"
+        }
+        break
+    }
+
+    # ==========================================
+    # Docker 管理命令
+    # ==========================================
+
+    'docker-validate' {
+        Write-Host "`n✅ 验证 Docker 环境" -ForegroundColor Cyan
+        
+        $errors = @()
+        
+        # 检查 Docker
+        Write-Step "检查 Docker..."
+        if (Get-Command docker -ErrorAction SilentlyContinue) {
+            $dockerVersion = docker --version
+            Write-Success $dockerVersion
+        }
+        else {
+            Write-ErrorMsg "Docker 未安装或未运行"
+            $errors += "Docker 未安装"
+        }
+        
+        # 检查 Docker Compose
+        Write-Step "检查 Docker Compose..."
+        if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+            $composeVersion = docker-compose --version
+            Write-Success $composeVersion
+        }
+        else {
+            Write-ErrorMsg "Docker Compose 未安装"
+            $errors += "Docker Compose 未安装"
+        }
+        
+        # 验证配置文件
+        Write-Step "验证 docker-compose.yml..."
+        if (Test-Path "docker-compose.yml") {
+            try {
+                $null = docker-compose config --quiet 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "配置文件语法正确"
+                }
+                else {
+                    Write-ErrorMsg "docker-compose.yml 语法错误"
+                    $errors += "docker-compose.yml 语法错误"
+                }
+            }
+            catch {
+                Write-ErrorMsg "docker-compose.yml 验证失败"
+                $errors += "验证失败"
+            }
+        }
+        else {
+            Write-ErrorMsg "缺少 docker-compose.yml"
+            $errors += "缺少 docker-compose.yml"
+        }
+        
+        # 总结
+        Write-Host ""
+        if ($errors.Count -eq 0) {
+            Write-Success "所有检查通过!"
+            Write-Host ""
+            Write-Info "下一步: .\manage.ps1 docker-build"
+        }
+        else {
+            Write-ErrorMsg "发现 $($errors.Count) 个问题"
+        }
+        break
+    }
+
+    'docker-build' {
+        Write-Host "`n🔨 构建所有 Docker 镜像" -ForegroundColor Cyan
+        Exec { docker-compose build }
+        Write-Success "所有镜像构建完成"
+        break
+    }
+
+    'docker-build-go' {
+        Write-Host "`n🔨 构建 Go 服务镜像" -ForegroundColor Cyan
+        Exec { docker-compose build nexus beacon gjallar }
+        Write-Success "Go 服务镜像构建完成"
+        break
+    }
+
+    'docker-build-rust' {
+        Write-Host "`n🔨 构建 Rust 服务镜像" -ForegroundColor Cyan
+        Exec { docker-compose build forge mirror oracle }
+        Write-Success "Rust 服务镜像构建完成"
+        break
+    }
+
+    'docker-up' {
+        Write-Host "`n▶️  启动所有服务" -ForegroundColor Cyan
+        Exec { docker-compose up -d }
+        Write-Host ""
+        docker-compose ps
+        Write-Host ""
+        Write-Success "所有服务已启动"
+        Write-Info "查看日志: .\manage.ps1 docker-logs"
+        Write-Info "访问网关: http://localhost:8080"
+        Write-Info "Jaeger UI: http://localhost:16686"
+        break
+    }
+
+    'docker-up-infra' {
+        Write-Host "`n▶️  启动基础设施服务" -ForegroundColor Cyan
+        Exec { docker-compose up -d postgres redis nats minio jaeger createbuckets }
+        Write-Host ""
+        docker-compose ps
+        Write-Host ""
+        Write-Success "基础设施服务已启动"
+        break
+    }
+
+    'docker-up-go' {
+        Write-Host "`n▶️  启动 Go 服务" -ForegroundColor Cyan
+        Exec { docker-compose up -d nexus beacon gjallar }
+        Write-Host ""
+        docker-compose ps
+        Write-Host ""
+        Write-Success "Go 服务已启动"
+        break
+    }
+
+    'docker-up-rust' {
+        Write-Host "`n▶️  启动 Rust 服务" -ForegroundColor Cyan
+        Exec { docker-compose up -d forge mirror oracle }
+        Write-Host ""
+        docker-compose ps
+        Write-Host ""
+        Write-Success "Rust 服务已启动"
+        break
+    }
+
+    'docker-down' {
+        Write-Host "`n⏹️  停止所有服务" -ForegroundColor Yellow
+        Exec { docker-compose down }
+        Write-Success "所有服务已停止"
+        break
+    }
+
+    'docker-restart' {
+        Write-Host "`n🔄 重启所有服务" -ForegroundColor Yellow
+        Exec { docker-compose restart }
+        Write-Success "所有服务已重启"
+        break
+    }
+
+    'docker-logs' {
+        if ($Arg1) {
+            Write-Host "`n📋 查看 $Arg1 日志" -ForegroundColor Cyan
+            docker-compose logs -f --tail=100 $Arg1
+        }
+        else {
+            Write-Host "`n📋 查看所有服务日志" -ForegroundColor Cyan
+            docker-compose logs -f --tail=50
+        }
+        break
+    }
+
+    'docker-ps' {
+        Write-Host "`n📊 服务运行状态" -ForegroundColor Cyan
+        docker-compose ps
+        break
+    }
+
+    'docker-clean' {
+        Write-Host "`n🗑️  清理 Docker 资源" -ForegroundColor Yellow
+        Write-Step "清理停止的容器..."
+        docker container prune -f
+        Write-Step "清理未使用的镜像..."
+        docker image prune -f
+        Write-Success "清理完成"
+        break
+    }
+
+    'docker-clean-all' {
+        Write-Host "`n⚠️  警告: 这将删除所有容器、镜像和数据卷!" -ForegroundColor Red
+        $confirm = Read-Host "确认继续? (yes/no)"
+        
+        if ($confirm -eq "yes") {
+            Write-Host "`n🗑️  清理所有 Docker 资源" -ForegroundColor Yellow
+            docker-compose down -v
+            docker system prune -a -f --volumes
+            Write-Success "清理完成"
+        }
+        else {
+            Write-Info "已取消"
         }
         break
     }

@@ -1,84 +1,95 @@
 services:
-  # ------------------------------------
+  # ==========================================
   # 基础设施 (Infrastructure)
-  # ------------------------------------
+  # ==========================================
 
   # 1. Jaeger (全链路追踪)
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:${JAEGER_VERSION:-latest}
     container_name: bifrost-jaeger
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     ports:
-      - "16686:16686" # 仅暴露 UI
+      - "${JAEGER_PORT:-16686}:16686"
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
+    restart: unless-stopped
 
   # 2. PostgreSQL
   postgres:
-    image: postgres:16-alpine
+    image: postgres:${POSTGRES_VERSION}
     container_name: bifrost-postgres
     environment:
-      POSTGRES_USER: bifrost_user
-      POSTGRES_PASSWORD: bifrost_pass
-      POSTGRES_DB: bifrost
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bifrost_user -d bifrost"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # 3. Redis
   redis:
-    image: redis:7-alpine
+    image: redis:${REDIS_VERSION}
     container_name: bifrost-redis
     volumes:
       - redis_data:/data
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
-  # 4. NATS（内部网络使用，不暴露宿主机端口）
+  # 4. NATS (Message Queue)
   nats:
-    image: nats:2-alpine
+    image: nats:${NATS_VERSION}
     container_name: bifrost-nats
     command: ["--jetstream", "--store_dir=/data"]
     volumes:
       - nats_data:/data
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
+    restart: unless-stopped
 
-  # 5. MinIO（对象存储，仅内网访问）
+  # 5. MinIO (Object Storage)
   minio:
-    image: minio/minio:latest
+    image: minio/minio:${MINIO_VERSION}
     container_name: bifrost-minio
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
     expose:
-      - "9000" # API 端口（供 Nexus 使用）
-      - "9001" # Console 端口（供未来 Nginx 代理）
+      - "${MINIO_PORT}"
+      - "${MINIO_CONSOLE_PORT}"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
     volumes:
       - minio_data:/data
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${MINIO_PORT}/minio/health/live",
+        ]
       interval: 30s
       timeout: 20s
       retries: 3
+    restart: unless-stopped
 
-  # 6. 初始化 MinIO Bucket（一次性任务）
+  # 6. Initialize MinIO Buckets (One-time Task)
   createbuckets:
     image: minio/mc
     container_name: bifrost-createbuckets
@@ -86,100 +97,113 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc alias set myminio http://minio:${MINIO_PORT} ${MINIO_USER} ${MINIO_PASSWORD};
       /usr/bin/mc mb myminio/bifrost-assets;
       /usr/bin/mc anonymous set public myminio/bifrost-assets;
       exit 0;
       "
 
-  # ------------------------------------
-  # 微服务 (Microservices)
-  # ------------------------------------
+  # 7. Dozzle (Container Logs Viewer)
+  dozzle:
+    image: amir20/dozzle:${DOZZLE_VERSION}
+    container_name: bifrost-dozzle
+    ports:
+      - "${DOZZLE_PORT:-9999}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOZZLE_LEVEL=${LOG_LEVEL:-info}
+    networks:
+      - ${COMPOSE_NETWORK}
+    restart: unless-stopped
 
-  # 1. Nexus (写服务)
+  # ==========================================
+  # Go Microservices
+  # ==========================================
+
+  # 1. Nexus (Content Orchestration)
   nexus:
     build:
       context: ./go_services
-      dockerfile: ../Dockerfile
+      dockerfile: Dockerfile
       args:
         SERVICE_NAME: nexus
     container_name: bifrost-nexus
     environment:
       - BIFROST_APP_ENV=docker
       - BIFROST_APP_NAME=bifrost-nexus
-      - BIFROST_SERVER_GRPC_ADDR=:9001
-      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
-      - BIFROST_DATA_DATABASE_DSN=host=postgres port=5432 user=bifrost_user password=bifrost_pass dbname=bifrost sslmode=disable
-      - BIFROST_DATA_DATABASE_DRIVER=pgx
-      - BIFROST_MESSENGER_ADDR=nats://nats:4222
-      - BIFROST_STORAGE_ENDPOINT=minio:9000
-      - BIFROST_STORAGE_ACCESS_KEY_ID=minioadmin
-      - BIFROST_STORAGE_SECRET_ACCESS_KEY=minioadmin
-      - BIFROST_STORAGE_BUCKET=bifrost-assets
-      - BIFROST_STORAGE_USE_SSL=false
-      - BIFROST_STORAGE_REGION=us-east-1
+      - BIFROST_HTTP_ADDR=:8080
+      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:${JAEGER_OTLP_PORT}
+      - BIFROST_DATA_DATABASE_DSN=host=postgres port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable TimeZone=Asia/Shanghai
+      - BIFROST_MESSENGER_ADDR=nats://${NATS_HOST:-nats}:${NATS_PORT:-4222}
+      - BIFROST_STORAGE_ENDPOINT=${MINIO_HOST:-minio}:${MINIO_PORT}
+      - BIFROST_STORAGE_ACCESS_KEY_ID=${MINIO_USER}
+      - BIFROST_STORAGE_SECRET_ACCESS_KEY=${MINIO_PASSWORD}
+      - BIFROST_RPC_FORGE_ADDR=forge:${FORGE_PORT_GRPC}
+      - RUST_LOG=${LOG_LEVEL}
+    expose:
+      - "8080"
+      - "${NEXUS_PORT_GRPC}"
+      - "${NEXUS_PORT_PROM}"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      minio:
         condition: service_healthy
-      nats:
+      forge:
         condition: service_started
       jaeger:
         condition: service_started
-      minio:
-        condition: service_healthy
     networks:
-      - bifrost-network
-    restart: unless-stopped
+      - ${COMPOSE_NETWORK}
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:9001"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:${NEXUS_PORT_GRPC}"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
 
-  # 2. Beacon (读服务)
+  # 2. Beacon (User Authentication)
   beacon:
     build:
       context: ./go_services
-      dockerfile: ../Dockerfile
+      dockerfile: Dockerfile
       args:
         SERVICE_NAME: beacon
     container_name: bifrost-beacon
     environment:
       - BIFROST_APP_ENV=docker
       - BIFROST_APP_NAME=bifrost-beacon
-      - BIFROST_SERVER_GRPC_ADDR=:9002
-      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
-      - BIFROST_DATA_DATABASE_DSN=host=postgres port=5432 user=bifrost_user password=bifrost_pass dbname=bifrost sslmode=disable
-      - BIFROST_DATA_REDIS_ADDR=redis:6379
-      - BIFROST_MESSENGER_ADDR=nats://nats:4222
+      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:${JAEGER_OTLP_PORT}
+      - BIFROST_DATA_DATABASE_DSN=host=postgres port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable TimeZone=Asia/Shanghai
+      - BIFROST_DATA_REDIS_ADDR=redis:${REDIS_PORT}
+      - BIFROST_MESSENGER_ADDR=nats://${NATS_HOST:-nats}:${NATS_PORT:-4222}
+      - RUST_LOG=${LOG_LEVEL}
+    expose:
+      - "${BEACON_PORT_GRPC}"
+      - "${BEACON_PORT_PROM}"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      nats:
-        condition: service_started
       jaeger:
         condition: service_started
     networks:
-      - bifrost-network
-    restart: unless-stopped
+      - ${COMPOSE_NETWORK}
     healthcheck:
-      test: ["CMD", "/bin/grpc_health_probe", "-addr=:9002"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "/bin/grpc_health_probe", "-addr=:${BEACON_PORT_GRPC}"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
 
-  # 3. Gjallar (网关)
+  # 3. Gjallar (API Gateway)
   gjallar:
     build:
       context: ./go_services
-      dockerfile: ../Dockerfile
+      dockerfile: Dockerfile
       args:
         SERVICE_NAME: gjallar
     container_name: bifrost-gjallar
@@ -187,42 +211,138 @@ services:
       - BIFROST_APP_ENV=docker
       - BIFROST_APP_NAME=bifrost-gjallar
       - BIFROST_HTTP_ADDR=:8080
-      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:4317
-      - BIFROST_RPC_NEXUS_ADDR=nexus:9001
-      - BIFROST_RPC_BEACON_ADDR=beacon:9002
+      - BIFROST_OBSERVABILITY_OTLP_ENDPOINT=jaeger:${JAEGER_OTLP_PORT}
+      - BIFROST_RPC_NEXUS_ADDR=nexus:${NEXUS_PORT_GRPC}
+      - BIFROST_RPC_BEACON_ADDR=beacon:${BEACON_PORT_GRPC}
+      - BIFROST_RPC_MIRROR_ADDR=mirror:${MIRROR_PORT_GRPC}
+      - RUST_LOG=${LOG_LEVEL}
     ports:
-      - "8080:8080" # 对外暴露 HTTP 端口
+      - "${GJALLAR_PORT_HTTP}:8080"
     depends_on:
       nexus:
         condition: service_healthy
       beacon:
         condition: service_healthy
+      mirror:
+        condition: service_started
       jaeger:
         condition: service_started
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
     restart: unless-stopped
 
-  # 4. Dozzle (容器日志浏览器)
-  dozzle:
-    image: amir20/dozzle:latest
-    container_name: bifrost-dozzle
-    ports:
-      - "9999:8080" # 访问 http://localhost:9999
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+  # ==========================================
+  # Rust Microservices
+  # ==========================================
+
+  # 1. Forge (Markdown Renderer)
+  forge:
+    build:
+      context: .
+      dockerfile: rust_services/Dockerfile
+      args:
+        SERVICE: forge
+    container_name: bifrost-forge
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
+      - APP_FORGE__SERVER__ADDR=0.0.0.0:${FORGE_PORT_GRPC}
+      - APP_FORGE__LOG__FORMAT=${LOG_FORMAT}
+      - APP_FORGE__OTEL__ENABLED=${OTEL_ENABLED}
+      - APP_FORGE__OTEL__ENDPOINT=${OTEL_ENDPOINT}
+    expose:
+      - "${FORGE_PORT_GRPC}"
+      - "${FORGE_PORT_PROM}"
+    depends_on:
+      jaeger:
+        condition: service_started
     networks:
-      - bifrost-network
+      - ${COMPOSE_NETWORK}
     restart: unless-stopped
 
-# 网络定义
+  # 2. Mirror (Full-Text Search)
+  mirror:
+    build:
+      context: .
+      dockerfile: rust_services/Dockerfile
+      args:
+        SERVICE: mirror
+    container_name: bifrost-mirror
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
+      - APP_MIRROR__SERVER__ADDR=0.0.0.0:${MIRROR_PORT_GRPC}
+      - APP_MIRROR__LOG__FORMAT=${LOG_FORMAT}
+      - APP_MIRROR__DATABASE__DSN=host=postgres port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable
+      - APP_MIRROR__NATS__URL=nats://nats:${NATS_PORT}
+      - APP_MIRROR__OTEL__ENABLED=${OTEL_ENABLED}
+      - APP_MIRROR__OTEL__ENDPOINT=${OTEL_ENDPOINT}
+      - MIRROR_INDEX_PATH=${MIRROR_INDEX_PATH}
+    expose:
+      - "${MIRROR_PORT_GRPC}"
+      - "${MIRROR_PORT_PROM}"
+    volumes:
+      - ${MIRROR_VOLUME}:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    networks:
+      - ${COMPOSE_NETWORK}
+    restart: unless-stopped
+
+  # 3. Oracle (Real-Time Analytics)
+  oracle:
+    build:
+      context: .
+      dockerfile: rust_services/Dockerfile
+      args:
+        SERVICE: oracle
+    container_name: bifrost-oracle
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
+      - APP_ORACLE__SERVER__ADDR=0.0.0.0:${ORACLE_PORT_GRPC}
+      - APP_ORACLE__LOG__FORMAT=${LOG_FORMAT}
+      - APP_ORACLE__DATABASE__DSN=host=postgres port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable
+      - APP_ORACLE__REDIS__DSN=redis://redis:6379/0
+      - APP_ORACLE__NATS__URL=nats://nats:${NATS_PORT}
+      - APP_ORACLE__OTEL__ENABLED=${OTEL_ENABLED}
+      - APP_ORACLE__OTEL__ENDPOINT=${OTEL_ENDPOINT}
+    expose:
+      - "${ORACLE_PORT_GRPC}"
+      - "${ORACLE_PORT_PROM}"
+    volumes:
+      - ${ORACLE_VOLUME}:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    networks:
+      - ${COMPOSE_NETWORK}
+    restart: unless-stopped
+
+# ==========================================
+# Network & Volumes
+# ==========================================
+
 networks:
   bifrost-network:
+    name: ${COMPOSE_NETWORK}
     driver: bridge
 
-# 持久化存储
 volumes:
   postgres_data:
   redis_data:
   nats_data:
   minio_data:
+  mirror_index:
+  oracle_data:

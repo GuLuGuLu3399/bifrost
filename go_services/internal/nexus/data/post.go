@@ -264,6 +264,7 @@ func (r *postRepo) Update(ctx context.Context, post *biz.Post) error {
 }
 
 // UpdateRenderedContent 更新渲染后的内容
+// 此方法在 CreatePost/UpdatePost 事务中被调用，用于存储 Forge 渲染的 HTML 结果
 func (r *postRepo) UpdateRenderedContent(ctx context.Context, id int64, htmlBody, tocJson, summary string) error {
 	query := `
 		UPDATE posts SET

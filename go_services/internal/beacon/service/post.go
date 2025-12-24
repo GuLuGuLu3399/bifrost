@@ -18,7 +18,7 @@ func NewPostService(repo biz.PostRepo) *PostService {
 }
 
 func (s *PostService) GetPost(ctx context.Context, req *beaconv1.GetPostRequest) (*beaconv1.GetPostResponse, error) {
-	post, err := s.repo.GetPost(ctx, req.GetSlugOrId())
+	post, err := s.repo.GetPost(ctx, req.GetSlug())
 	if err != nil {
 		return nil, err
 	}

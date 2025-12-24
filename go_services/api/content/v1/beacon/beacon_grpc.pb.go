@@ -33,14 +33,19 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // ==========================================
-// 1. 文章读服务 (Post Query)
+// 1. 文章读服务 (Post Query) - Public API
 // ==========================================
+// 公开 API：此服务用于博客前台展示，支持缓存和 CDN 分发
+// 仅返回已发布的文章，移除 raw_markdown 等内部字段以节省流量
 type BeaconServiceClient interface {
-	// 获取文章详情 (HTML渲染版，用于详情页)
+	// [公开] 获取文章详情 (HTML渲染版，用于详情页)
+	// ✅ 确认：返回 html_body, toc_json, published_at, tags
+	// ✅ 移除：raw_markdown (内部字段)
 	GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error)
-	// 获取文章列表 (轻量摘要版，用于首页/归档)
+	// [公开] 获取文章列表 (轻量摘要版，用于首页/归档)
+	// ✅ 确认：支持分页，返回 summary, cover_image, tags
 	ListPosts(ctx context.Context, in *ListPostsRequest, opts ...grpc.CallOption) (*ListPostsResponse, error)
-	// [关键新增] 批量获取文章 (通常用于搜索结果聚合，建议返回摘要)
+	// [关键新增] 批量获取文章 (通常用于搜索结果聚合，返回摘要)
 	BatchGetPosts(ctx context.Context, in *BatchGetPostsRequest, opts ...grpc.CallOption) (*BatchGetPostsResponse, error)
 	ListComments(ctx context.Context, in *ListCommentsRequest, opts ...grpc.CallOption) (*ListCommentsResponse, error)
 	// ==========================================
@@ -137,14 +142,19 @@ func (c *beaconServiceClient) ListTags(ctx context.Context, in *ListTagsRequest,
 // for forward compatibility.
 //
 // ==========================================
-// 1. 文章读服务 (Post Query)
+// 1. 文章读服务 (Post Query) - Public API
 // ==========================================
+// 公开 API：此服务用于博客前台展示，支持缓存和 CDN 分发
+// 仅返回已发布的文章，移除 raw_markdown 等内部字段以节省流量
 type BeaconServiceServer interface {
-	// 获取文章详情 (HTML渲染版，用于详情页)
+	// [公开] 获取文章详情 (HTML渲染版，用于详情页)
+	// ✅ 确认：返回 html_body, toc_json, published_at, tags
+	// ✅ 移除：raw_markdown (内部字段)
 	GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error)
-	// 获取文章列表 (轻量摘要版，用于首页/归档)
+	// [公开] 获取文章列表 (轻量摘要版，用于首页/归档)
+	// ✅ 确认：支持分页，返回 summary, cover_image, tags
 	ListPosts(context.Context, *ListPostsRequest) (*ListPostsResponse, error)
-	// [关键新增] 批量获取文章 (通常用于搜索结果聚合，建议返回摘要)
+	// [关键新增] 批量获取文章 (通常用于搜索结果聚合，返回摘要)
 	BatchGetPosts(context.Context, *BatchGetPostsRequest) (*BatchGetPostsResponse, error)
 	ListComments(context.Context, *ListCommentsRequest) (*ListCommentsResponse, error)
 	// ==========================================

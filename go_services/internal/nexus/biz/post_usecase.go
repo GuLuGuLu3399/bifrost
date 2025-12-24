@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	contentv1 "github.com/gulugulu3399/bifrost/api/content/v1"
@@ -88,13 +89,22 @@ func (uc *PostUseCase) CreatePost(ctx context.Context, input *CreatePostInput) (
 		}
 		post.ID = postID
 
-		// 3.5 可选：同步调用 Forge 渲染（失败不阻断发布，降级为仅存 Markdown）
+		// 3.5 同步调用 Forge 渲染（如果配置了客户端）
+		// 渲染失败将阻止文章发布，确保数据一致性
 		if uc.forgeClient != nil && post.RawMarkdown != "" {
-			renderCtx, cancel := context.WithTimeout(txCtx, 2*time.Second)
+			renderCtx, cancel := context.WithTimeout(txCtx, 5*time.Second)
 			defer cancel()
+			
 			resp, rerr := uc.forgeClient.Render(renderCtx, &forgev1.RenderRequest{RawMarkdown: post.RawMarkdown})
-			if rerr == nil && resp != nil {
-				_ = uc.repo.UpdateRenderedContent(txCtx, postID, resp.GetHtmlBody(), resp.GetTocJson(), resp.GetSummary())
+			if rerr != nil {
+				return fmt.Errorf("forge render failed: %w", rerr)
+			}
+			
+			// 更新渲染后的内容
+			if resp != nil {
+				if err := uc.repo.UpdateRenderedContent(txCtx, postID, resp.GetHtmlBody(), resp.GetTocJson(), resp.GetSummary()); err != nil {
+					return fmt.Errorf("update rendered content failed: %w", err)
+				}
 			}
 		}
 
@@ -174,13 +184,22 @@ func (uc *PostUseCase) UpdatePost(ctx context.Context, input *UpdatePostInput) (
 			return err
 		}
 
-		// 3.5 可选：重新渲染（当 RawMarkdown 变更时）
+		// 3.5 同步重新渲染（当 RawMarkdown 变更时）
+		// 渲染失败将阻止更新，确保数据一致性
 		if uc.forgeClient != nil && post.RawMarkdown != "" {
-			renderCtx, cancel := context.WithTimeout(txCtx, 2*time.Second)
+			renderCtx, cancel := context.WithTimeout(txCtx, 5*time.Second)
 			defer cancel()
+			
 			resp, rerr := uc.forgeClient.Render(renderCtx, &forgev1.RenderRequest{RawMarkdown: post.RawMarkdown})
-			if rerr == nil && resp != nil {
-				_ = uc.repo.UpdateRenderedContent(txCtx, post.ID, resp.GetHtmlBody(), resp.GetTocJson(), resp.GetSummary())
+			if rerr != nil {
+				return fmt.Errorf("forge render failed: %w", rerr)
+			}
+			
+			// 更新渲染后的内容
+			if resp != nil {
+				if err := uc.repo.UpdateRenderedContent(txCtx, post.ID, resp.GetHtmlBody(), resp.GetTocJson(), resp.GetSummary()); err != nil {
+					return fmt.Errorf("update rendered content failed: %w", err)
+				}
 			}
 		}
 
@@ -189,21 +208,6 @@ func (uc *PostUseCase) UpdatePost(ctx context.Context, input *UpdatePostInput) (
 	})
 
 	return output, err
-}
-
-// UpdateRenderedContent 更新渲染后的内容
-func (uc *PostUseCase) UpdateRenderedContent(ctx context.Context, id int64, htmlBody, tocJson, summary string) error {
-	// 1. 检查文章是否存在
-	post, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if post == nil {
-		return ErrPostNotFound
-	}
-
-	// 2. 更新渲染内容
-	return uc.repo.UpdateRenderedContent(ctx, id, htmlBody, tocJson, summary)
 }
 
 // DeletePost 删除文章 (软删除)

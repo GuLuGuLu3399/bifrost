@@ -11,6 +11,7 @@ path = "src/main.rs"
 common = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }
+tonic-health = { workspace = true }
 prost = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

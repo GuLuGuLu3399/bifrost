@@ -16,6 +16,7 @@ http:
   addr: ":8080"
   read_timeout: 10s
   write_timeout: 10s
+  idle_timeout: 60s
   timeout: 10s
 
 rpc:
@@ -24,4 +25,7 @@ rpc:
     timeout: 5s
   beacon:
     addr: "127.0.0.1:9002"
+    timeout: 5s
+  mirror:
+    addr: "bifrost-mirror:9093"
     timeout: 5s

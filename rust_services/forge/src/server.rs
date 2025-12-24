@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use common::ctx::ContextData;
 use common::forge::render_service_server::RenderService; // 生成的 Trait
 use common::forge::{
     GetRenderMetaRequest, GetRenderMetaResponse, RenderPreviewRequest, RenderPreviewResponse,
@@ -34,6 +35,16 @@ impl RenderService for GrpcServer {
     ) -> Result<Response<RenderPreviewResponse>, Status> {
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         let req = request.into_inner();
         let engine = self.engine.clone();
 
@@ -60,6 +71,16 @@ impl RenderService for GrpcServer {
     ) -> Result<Response<GetRenderMetaResponse>, Status> {
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         Ok(Response::new(GetRenderMetaResponse {
             version: "v3.2".into(),
             enabled_extensions: vec!["tables".into(), "tasklists".into(), "footnotes".into()],
@@ -70,6 +91,16 @@ impl RenderService for GrpcServer {
     async fn render(&self, request: Request<RenderRequest>) -> Result<Response<RenderResponse>, Status> {
         let md = request.metadata().clone();
         common::trace::set_parent_from_metadata(&md);
+        
+        // ✅ 从 metadata 提取上下文，设置 tracing span 的字段
+        let ctx = ContextData::from_metadata(&md);
+        if let Some(rid) = &ctx.request_id {
+            tracing::Span::current().record("request_id", rid.as_str());
+        }
+        if let Some(uid) = ctx.user_id {
+            tracing::Span::current().record("user_id", uid);
+        }
+        
         let req = request.into_inner();
         let engine = self.engine.clone();
 

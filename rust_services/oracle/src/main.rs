@@ -15,6 +15,7 @@ use common::metrics;
 use common::oracle::analysis_service_server::AnalysisServiceServer;
 use std::sync::Arc;
 use tonic::transport::Server;
+use tonic_health;
 use tracing::info;
 
 #[tokio::main]
@@ -59,11 +60,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()?;
     let service = OracleServer::new(ingestor, store);
 
+    // 初始化健康检查
+    let (_health_reporter, health_service) = tonic_health::server::health_reporter();
+
     info!("🔮 Oracle (BI) listening on {}", addr);
     info!("🦆 DuckDB path: {}", db_path);
 
     Server::builder()
         .add_service(AnalysisServiceServer::new(service))
+        .add_service(health_service)
         .serve_with_shutdown(addr, common::lifecycle::shutdown_signal())
         .await?;
 

@@ -13,6 +13,7 @@ use common::metrics;
 use common::search::mirror_service_server::MirrorServiceServer;
 use std::sync::Arc;
 use tonic::transport::Server;
+use tonic_health;
 use tracing::{error, info};
 
 #[tokio::main]
@@ -75,10 +76,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = server_cfg.addr.parse()?;
     let mirror_service = GrpcServer::new(engine);
 
+    // 初始化健康检查
+    let (_health_reporter, health_service) = tonic_health::server::health_reporter();
+
     info!(%addr, "mirror listening");
 
     Server::builder()
         .add_service(MirrorServiceServer::new(mirror_service))
+        .add_service(health_service)
         .serve_with_shutdown(addr, common::lifecycle::shutdown_signal())
         .await?;
 

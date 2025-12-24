@@ -39,8 +39,8 @@ type postDetailPO struct {
 	CategorySlug  sql.NullString `db:"category_slug"`
 }
 
-func (r *postRepo) GetPost(ctx context.Context, slugOrId string) (*beaconv1.PostDetail, error) {
-	key := KeyPostDetail(slugOrId)
+func (r *postRepo) GetPost(ctx context.Context, slug string) (*beaconv1.PostDetail, error) {
+	key := KeyPostDetail(slug)
 
 	return cache.Fetch(ctx, r.data.Cache(), key, PostCacheTTL, func() (*beaconv1.PostDetail, error) {
 		var po postDetailPO
@@ -53,11 +53,11 @@ func (r *postRepo) GetPost(ctx context.Context, slugOrId string) (*beaconv1.Post
 			FROM posts p
 			LEFT JOIN users u ON p.author_id = u.id
 			LEFT JOIN categories c ON p.category_id = c.id
-			WHERE (p.slug = $1 OR p.id::text = $1)
+			WHERE p.slug = $1
 			  AND p.status = 'published'
 			  AND p.deleted_at IS NULL
 		`
-		if err := r.data.DB().GetContext(ctx, &po, query, slugOrId); err != nil {
+		if err := r.data.DB().GetContext(ctx, &po, query, slug); err != nil {
 			return nil, err
 		}
 

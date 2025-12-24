@@ -11,25 +11,30 @@ import "api/content/v1/models.proto";
 option go_package = "github.com/gulugulu3399/bifrost/api/content/v1/beacon;beaconv1";
 
 // ==========================================
-// 1. 文章读服务 (Post Query)
+// 1. 文章读服务 (Post Query) - Public API
 // ==========================================
+// 公开 API：此服务用于博客前台展示，支持缓存和 CDN 分发
+// 仅返回已发布的文章，移除 raw_markdown 等内部字段以节省流量
 service BeaconService {
 
-  // 获取文章详情 (HTML渲染版，用于详情页)
+  // [公开] 获取文章详情 (HTML渲染版，用于详情页)
+  // ✅ 确认：返回 html_body, toc_json, published_at, tags
+  // ✅ 移除：raw_markdown (内部字段)
   rpc GetPost(GetPostRequest) returns (GetPostResponse) {
     option (google.api.http) = {
-      get: "/v1/posts/{slug_or_id}"
+      get: "/v1/posts/{slug}"
     };
   }
 
-  // 获取文章列表 (轻量摘要版，用于首页/归档)
+  // [公开] 获取文章列表 (轻量摘要版，用于首页/归档)
+  // ✅ 确认：支持分页，返回 summary, cover_image, tags
   rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
     option (google.api.http) = {
       get: "/v1/posts"
     };
   }
 
-  // [关键新增] 批量获取文章 (通常用于搜索结果聚合，建议返回摘要)
+  // [关键新增] 批量获取文章 (通常用于搜索结果聚合，返回摘要)
   rpc BatchGetPosts(BatchGetPostsRequest) returns (BatchGetPostsResponse) {
     option (google.api.http) = {
       post: "/v1/posts:batch"
@@ -172,10 +177,10 @@ message UserProfile {
 
 // Post
 message GetPostRequest {
-  string slug_or_id = 1;
+  string slug = 1; // URL 路径参数，唯一的文章别名
 }
 message GetPostResponse {
-  PostDetail post = 1; // ✅ 修复：使用 PostDetail
+  PostDetail post = 1; // ✅ 确认：返回 PostDetail (html_body, toc_json, published_at, tags)
 }
 
 message ListPostsRequest {
@@ -183,10 +188,10 @@ message ListPostsRequest {
   int64 category_id = 2;
   int64 tag_id = 3;
   int64 author_id = 4;
-  // 移除 status，Beacon 只能查 Published
+  // ✅ 移除 status：Beacon 只能查 Published 的文章
 }
 message ListPostsResponse {
-  repeated PostSummary posts = 1; // ✅ 修复：使用 PostSummary
+  repeated PostSummary posts = 1; // ✅ 确认：返回 PostSummary (title, slug, summary, cover_image, tags)
   bifrost.common.v1.PageResponse page = 2;
 }
 

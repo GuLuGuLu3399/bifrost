@@ -70,6 +70,7 @@ type PostRepo interface {
 	Update(ctx context.Context, post *Post) error
 
 	// UpdateRenderedContent 更新渲染后的内容
+	// 此方法在 CreatePost/UpdatePost 事务中被调用，用于存储 Forge 渲染的 HTML 结果
 	UpdateRenderedContent(ctx context.Context, id int64, htmlBody, tocJson, summary string) error
 
 	// Delete 软删除

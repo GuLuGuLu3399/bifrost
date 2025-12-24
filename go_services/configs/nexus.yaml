@@ -43,4 +43,4 @@ storage:
 
 # 下游 RPC 服务地址
 rpc:
-  forge_addr: "" # 示例: "forge:9100"（未部署则留空以跳过渲染）
+  forge_addr: "bifrost-forge:9092" # Forge Rust 服务地址

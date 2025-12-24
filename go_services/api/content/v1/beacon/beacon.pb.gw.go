@@ -44,13 +44,13 @@ func request_BeaconService_GetPost_0(ctx context.Context, marshaler runtime.Mars
 	if req.Body != nil {
 		_, _ = io.Copy(io.Discard, req.Body)
 	}
-	val, ok := pathParams["slug_or_id"]
+	val, ok := pathParams["slug"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "slug_or_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "slug")
 	}
-	protoReq.SlugOrId, err = runtime.String(val)
+	protoReq.Slug, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "slug_or_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "slug", err)
 	}
 	msg, err := client.GetPost(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -62,13 +62,13 @@ func local_request_BeaconService_GetPost_0(ctx context.Context, marshaler runtim
 		metadata runtime.ServerMetadata
 		err      error
 	)
-	val, ok := pathParams["slug_or_id"]
+	val, ok := pathParams["slug"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "slug_or_id")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "slug")
 	}
-	protoReq.SlugOrId, err = runtime.String(val)
+	protoReq.Slug, err = runtime.String(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "slug_or_id", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "slug", err)
 	}
 	msg, err := server.GetPost(ctx, &protoReq)
 	return msg, metadata, err
@@ -282,7 +282,7 @@ func RegisterBeaconServiceHandlerServer(ctx context.Context, mux *runtime.ServeM
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.beacon.BeaconService/GetPost", runtime.WithHTTPPathPattern("/v1/posts/{slug_or_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.beacon.BeaconService/GetPost", runtime.WithHTTPPathPattern("/v1/posts/{slug}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -460,7 +460,7 @@ func RegisterBeaconServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.beacon.BeaconService/GetPost", runtime.WithHTTPPathPattern("/v1/posts/{slug_or_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.beacon.BeaconService/GetPost", runtime.WithHTTPPathPattern("/v1/posts/{slug}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -579,7 +579,7 @@ func RegisterBeaconServiceHandlerClient(ctx context.Context, mux *runtime.ServeM
 }
 
 var (
-	pattern_BeaconService_GetPost_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "posts", "slug_or_id"}, ""))
+	pattern_BeaconService_GetPost_0        = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "posts", "slug"}, ""))
 	pattern_BeaconService_ListPosts_0      = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "posts"}, ""))
 	pattern_BeaconService_BatchGetPosts_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "posts"}, "batch"))
 	pattern_BeaconService_ListComments_0   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1", "posts", "post_id", "comments"}, ""))

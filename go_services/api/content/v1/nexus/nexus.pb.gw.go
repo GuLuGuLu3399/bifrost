@@ -178,11 +178,11 @@ func local_request_UserService_UpdateProfile_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-var filter_PostService_ListPosts_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+var filter_PostService_ListDrafts_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 
-func request_PostService_ListPosts_0(ctx context.Context, marshaler runtime.Marshaler, client PostServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_PostService_ListDrafts_0(ctx context.Context, marshaler runtime.Marshaler, client PostServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListPostsRequest
+		protoReq ListDraftsRequest
 		metadata runtime.ServerMetadata
 	)
 	if req.Body != nil {
@@ -191,25 +191,64 @@ func request_PostService_ListPosts_0(ctx context.Context, marshaler runtime.Mars
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PostService_ListPosts_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PostService_ListDrafts_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := client.ListPosts(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.ListDrafts(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 }
 
-func local_request_PostService_ListPosts_0(ctx context.Context, marshaler runtime.Marshaler, server PostServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_PostService_ListDrafts_0(ctx context.Context, marshaler runtime.Marshaler, server PostServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListPostsRequest
+		protoReq ListDraftsRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PostService_ListPosts_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_PostService_ListDrafts_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	msg, err := server.ListPosts(ctx, &protoReq)
+	msg, err := server.ListDrafts(ctx, &protoReq)
+	return msg, metadata, err
+}
+
+func request_PostService_FetchSource_0(ctx context.Context, marshaler runtime.Marshaler, client PostServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq FetchSourceRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	val, ok := pathParams["post_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "post_id")
+	}
+	protoReq.PostId, err = runtime.Int64(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "post_id", err)
+	}
+	msg, err := client.FetchSource(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_PostService_FetchSource_0(ctx context.Context, marshaler runtime.Marshaler, server PostServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq FetchSourceRequest
+		metadata runtime.ServerMetadata
+		err      error
+	)
+	val, ok := pathParams["post_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "post_id")
+	}
+	protoReq.PostId, err = runtime.Int64(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "post_id", err)
+	}
+	msg, err := server.FetchSource(ctx, &protoReq)
 	return msg, metadata, err
 }
 
@@ -761,25 +800,45 @@ func RegisterUserServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterPostServiceHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterPostServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server PostServiceServer) error {
-	mux.Handle(http.MethodGet, pattern_PostService_ListPosts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PostService_ListDrafts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/ListPosts", runtime.WithHTTPPathPattern("/v1/posts"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/ListDrafts", runtime.WithHTTPPathPattern("/v1/drafts"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_PostService_ListPosts_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_PostService_ListDrafts_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PostService_ListPosts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PostService_ListDrafts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodGet, pattern_PostService_FetchSource_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/FetchSource", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}/source"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_PostService_FetchSource_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_PostService_FetchSource_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_PostService_CreatePost_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -787,7 +846,7 @@ func RegisterPostServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/CreatePost", runtime.WithHTTPPathPattern("/v1/posts"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/CreatePost", runtime.WithHTTPPathPattern("/v1/admin/posts"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -807,7 +866,7 @@ func RegisterPostServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/UpdatePost", runtime.WithHTTPPathPattern("/v1/posts/{post_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/UpdatePost", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -827,7 +886,7 @@ func RegisterPostServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/DeletePost", runtime.WithHTTPPathPattern("/v1/posts/{post_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/DeletePost", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -847,7 +906,7 @@ func RegisterPostServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/GetPost", runtime.WithHTTPPathPattern("/v1/posts/{post_id}"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/GetPost", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1241,28 +1300,45 @@ func RegisterPostServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "PostServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterPostServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client PostServiceClient) error {
-	mux.Handle(http.MethodGet, pattern_PostService_ListPosts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle(http.MethodGet, pattern_PostService_ListDrafts_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/ListPosts", runtime.WithHTTPPathPattern("/v1/posts"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/ListDrafts", runtime.WithHTTPPathPattern("/v1/drafts"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_PostService_ListPosts_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_PostService_ListDrafts_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		forward_PostService_ListPosts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_PostService_ListDrafts_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
+	mux.Handle(http.MethodGet, pattern_PostService_FetchSource_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/FetchSource", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}/source"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_PostService_FetchSource_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_PostService_FetchSource_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 	})
 	mux.Handle(http.MethodPost, pattern_PostService_CreatePost_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/CreatePost", runtime.WithHTTPPathPattern("/v1/posts"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/CreatePost", runtime.WithHTTPPathPattern("/v1/admin/posts"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1279,7 +1355,7 @@ func RegisterPostServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/UpdatePost", runtime.WithHTTPPathPattern("/v1/posts/{post_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/UpdatePost", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1296,7 +1372,7 @@ func RegisterPostServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/DeletePost", runtime.WithHTTPPathPattern("/v1/posts/{post_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/DeletePost", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1313,7 +1389,7 @@ func RegisterPostServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/GetPost", runtime.WithHTTPPathPattern("/v1/posts/{post_id}"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/bifrost.content.v1.nexus.PostService/GetPost", runtime.WithHTTPPathPattern("/v1/admin/posts/{post_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -1330,19 +1406,21 @@ func RegisterPostServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_PostService_ListPosts_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "posts"}, ""))
-	pattern_PostService_CreatePost_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "posts"}, ""))
-	pattern_PostService_UpdatePost_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "posts", "post_id"}, ""))
-	pattern_PostService_DeletePost_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "posts", "post_id"}, ""))
-	pattern_PostService_GetPost_0    = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"v1", "posts", "post_id"}, ""))
+	pattern_PostService_ListDrafts_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "drafts"}, ""))
+	pattern_PostService_FetchSource_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"v1", "admin", "posts", "post_id", "source"}, ""))
+	pattern_PostService_CreatePost_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "admin", "posts"}, ""))
+	pattern_PostService_UpdatePost_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "admin", "posts", "post_id"}, ""))
+	pattern_PostService_DeletePost_0  = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "admin", "posts", "post_id"}, ""))
+	pattern_PostService_GetPost_0     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "admin", "posts", "post_id"}, ""))
 )
 
 var (
-	forward_PostService_ListPosts_0  = runtime.ForwardResponseMessage
-	forward_PostService_CreatePost_0 = runtime.ForwardResponseMessage
-	forward_PostService_UpdatePost_0 = runtime.ForwardResponseMessage
-	forward_PostService_DeletePost_0 = runtime.ForwardResponseMessage
-	forward_PostService_GetPost_0    = runtime.ForwardResponseMessage
+	forward_PostService_ListDrafts_0  = runtime.ForwardResponseMessage
+	forward_PostService_FetchSource_0 = runtime.ForwardResponseMessage
+	forward_PostService_CreatePost_0  = runtime.ForwardResponseMessage
+	forward_PostService_UpdatePost_0  = runtime.ForwardResponseMessage
+	forward_PostService_DeletePost_0  = runtime.ForwardResponseMessage
+	forward_PostService_GetPost_0     = runtime.ForwardResponseMessage
 )
 
 // RegisterCommentServiceHandlerFromEndpoint is same as RegisterCommentServiceHandler but

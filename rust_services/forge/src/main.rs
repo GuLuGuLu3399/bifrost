@@ -9,6 +9,7 @@ use common::metrics;
 use common::forge::render_service_server::RenderServiceServer;
 use std::net::SocketAddr;
 use tonic::transport::Server;
+use tonic_health;
 use tracing::info;
 
 #[tokio::main]
@@ -43,11 +44,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = server_cfg.addr.parse()?;
     let forge_service: GrpcServer = GrpcServer::new();
 
+    // 初始化健康检查
+    let ( _health_reporter, health_service) = tonic_health::server::health_reporter();
+
     info!(%addr, "forge (renderer) listening");
 
     // 3. 启动 Server
     Server::builder()
         .add_service(RenderServiceServer::new(forge_service))
+        .add_service(health_service)
         .serve_with_shutdown(addr, common::lifecycle::shutdown_signal())
         .await?;
 

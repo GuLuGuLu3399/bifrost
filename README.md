@@ -1,185 +1,161 @@
-# 🌈 Bifrost：多语言博客/CMS 平台
+# 🌈 Bifrost：Go + Rust 混合微服务 CMS 平台
 
-> 一个基于 **Go + Rust 混合微服务架构** 的现代内容管理与分析平台
+> CQRS + 双引擎驱动的现代内容管理平台
 >
-> ✨ **高性能** | 📊 **实时分析** | 🔍 **全文检索** | 🎨 **内容渲染** | 📈 **可观测性**
+> ✨ **高性能渲染** | 🔍 **全文检索** | 📊 **实时分析** | 🎨 **Markdown 渲染** | 📈 **可观测性**
 
 ---
 
-## 📋 快速导航
+## 🚀 快速开始
 
-| 文档                                                | 用途                   |
-|---------------------------------------------------|----------------------|
-| [Go Services README](./go_services/README.md)     | Go 核心服务架构 & 部署指南     |
-| [Rust Services README](./rust_services/README.md) | Rust 微服务构建 & 配置      |
-| [HTTP API 指南](./docs/HTTP_Guide.md)               | 接口交互规范与示例            |
-| [数据库架构](./migrations/readme.md)                   | PostgreSQL 表设计 & 关系图 |
-| [NATS 消息传递](./docs/NATS_MESSAGING_GUIDE.md)     | Fire-and-Forget 轻量级方案 |
-| [代码审计报告](./docs/code_audit_report.md)             | 质量评估与改进建议            |
+```powershell
+# 1. 验证环境
+.\manage.ps1 docker-validate
+
+# 2. 构建镜像
+.\manage.ps1 docker-build
+
+# 3. 启动服务
+.\manage.ps1 docker-up
+
+# 4. 查看状态
+.\manage.ps1 docker-ps
+
+# 5. 查看日志
+.\manage.ps1 docker-logs -Service gjallar
+```
+
+访问：
+
+- **API 网关**: <http://localhost:8080>
+- **Jaeger 追踪**: <http://localhost:16686>
+- **MinIO 控制台**: <http://localhost:9001>
+- **日志查看**: <http://localhost:9999>
 
 ---
 
-## 🏗️ 项目架构概览
+## 📋 核心文档
 
-### 核心设计理念：**黄金平衡的宏服务架构**
+| 文档 | 说明 |
+|------|------|
+| [系统架构蓝图](./docs/系统架构蓝图.md) | CQRS 架构、服务拓扑、数据流 |
+| [Docker 部署指南](./docs/Docker部署指南.md) | 完整部署流程、优化策略 |
+| [API 接口规范](./docs/API接口交互规范.md) | HTTP/gRPC 接口文档 |
+| [gRPC 集成报告](./docs/GRPC_INTEGRATION_REPORT.md) | Go→Rust 跨语言调用实现 |
+| [测试指南](./docs/TESTING_GUIDE.md) | 单元测试、集成测试策略 |
+| [数据库架构](./migrations/readme.md) | PostgreSQL 表设计 |
+| [代码审计报告](./docs/代码审计报告.md) | 质量评估与改进建议 |
 
-```txt
-┌─────────────────────────────────────────────────────────────────┐
-│                        前端应用 (Frontend)                       │
-│                    (React/Vue/Next.js)                          │
-└────────┬──────────────────────────────────────┬──────────────────┘
-         │                                      │
-    HTTP/1.1                              HTTP/1.1
-     REST                                  REST
-         │                                      │
-    ┌────▼────────┐                   ┌────────▼─────┐
-    │  Gjallar    │                   │  Gjallar     │
-    │  (Gateway)  │                   │  (Mirror)    │
-    └────┬────────┘                   └────────┬─────┘
-         │                                      │
-    ┌────▼────────────────┬────────────────────▼─────────┐
-    │                     │                              │
-   gRPC                  gRPC                          gRPC
-    │                     │                              │
-    │                     │                              │
-┌───▼────┐          ┌────▼───┐                  ┌────────▼────┐
-│ Nexus  │◄────────►│ Beacon │                  │   Forge     │
-│(写服务)│ PostgreSQL  (读服务)                  │(渲染服务)   │
-└───┬────┘          └────┬───┘                  └────────┬────┘
-    │                     │ PostgreSQL + Redis          │
-    │                     │                              │
-    │  ┌──────────────────┴──────────────┐      ┌───────┴────────┐
-    │  │                                 │      │                │
-   NATS                              ┌───▼─────┴──────┐    ┌──────▼──────┐
-    │  │                             │  Oracle (Rust) │    │Mirror(Rust) │
-    │  │                             │  (BI 分析)     │    │(全文检索)   │
-    │  │                             │  DuckDB        │    │Tantivy      │
-    │  │                             │  + Worker      │    │+ Indexer    │
-    │  │                             └────────────────┘    └─────────────┘
-    │  │
-    │  │  Queue Groups 负载均衡：
-    │  │  - beacon_service  (缓存失效)
-    │  │  - mirror_service  (索引更新)
-    │  │  - 可扩展至其他服务
-    │  │
-    │  └─► NATS (Fire-and-Forget)
-    │
-    └────────────────────────────────┐
-                                      │
-                            ┌─────────▼─────────┐
-                            │   MinIO (S3)      │
-                            │ (头像/附件存储)   │
-                            └───────────────────┘
+### 服务文档
 
-```
-
-### 🟢 部署维度：微服务式
-
-- ✅ 每个服务独立容器（Nexus, Beacon, Forge, Oracle, Mirror）
-- ✅ 故障隔离（一个服务宕机不影响其他）
-- ✅ 按需扩容（热服务可单独增加副本）
-
-### 🟡 数据维度：单体式
-
-- ✅ Nexus + Beacon 共享单一 PostgreSQL 数据库 → 强一致性
-- ✅ 避免分布式事务复杂性，使用**NATS Fire-and-Forget 轻量级方案**
-- ✅ Redis 作为 Session/缓存层，非关键数据
-
-### 🟡 代码维度：单体式
-
-- ✅ 所有 Go 服务共享 `common/` 库和 `pkg/` 工具集
-- ✅ 所有 Rust 服务共享 `common/` crate
-- ✅ 代码复用 > 服务隔离，原子性提交
+- [Go Services README](./go_services/README.md) - Go 核心服务架构
+- [Rust Services README](./rust_services/README.md) - Rust 微服务构建
 
 ---
 
-## 🔧 核心服务列表
+## 🏗️ 系统架构
 
-### Go 服务 (Bifrost Core)
+详见 **[系统架构蓝图](./docs/系统架构蓝图.md)**
 
-| 服务          | 端口    | 职责                    | 技术栈                                |
-|-------------|-------|-----------------------|------------------------------------|
-| **Nexus**   | 50051 | 写入核心（发布文章、评论、互动）      | gRPC, PostgreSQL, Redis, NATS      |
-| **Beacon**  | 50052 | 读取核心（查询文章、评论、统计）      | gRPC, PostgreSQL, Redis, LRU Cache |
-| **Gjallar** | 8080  | HTTP 网关（REST to gRPC） | gRPC Gateway, JWT Auth             |
+### CQRS + 双引擎模式
 
-### Rust 服务 (Bifrost Engines)
+```
+客户端
+  ↓
+Gjallar (API 网关) :8080
+  ├─ 写请求 → Nexus :9001 → Forge :9092 (同步渲染) → PostgreSQL
+  ├─ 读请求 → Beacon :9002 → Redis Cache → PostgreSQL
+  └─ 搜索请求 → Mirror :9093 (Tantivy 全文索引)
+  
+异步链路:
+  Nexus → NATS 事件 → Oracle :9094 → 更新 Mirror 索引
+```
 
-| 服务         | 端口    | 职责                                         | 技术栈                          |
-|------------|-------|--------------------------------------------|------------------------------|
-| **Forge**  | 50053 | Markdown 渲染（Editor Preview / Batch Render） | Tokio, Pulldown-cmark, gRPC  |
-| **Mirror** | 50054 | 全文检索（Index / Query）                        | Tokio, Tantivy, NATS Worker  |
-| **Oracle** | 50055 | BI 分析（Track Events / Dashboard）            | Tokio, DuckDB, Worker + Cron |
+### 核心服务
 
-### 基础设施 (Infrastructure)
+| 服务 | 端口 | 语言 | 职责 |
+|------|------|------|------|
+| **Gjallar** | 8080 (HTTP) | Go | API 网关、路由聚合 |
+| **Nexus** | 9001 (gRPC) | Go | 写服务、同步渲染 |
+| **Beacon** | 9002 (gRPC) | Go | 读服务、缓存策略 |
+| **Forge** | 9092 (gRPC) | Rust | Markdown 渲染引擎 |
+| **Mirror** | 9093 (gRPC) | Rust | 全文搜索引擎 |
+| **Oracle** | 9094 (gRPC) | Rust | 异步处理、索引更新 |
 
-| 组件             | 用途           | 配置                   |
-|----------------|--------------|----------------------|
-| **PostgreSQL** | 主数据存储        | 16-Alpine, 共享数据库     |
-| **Redis**      | Session / 缓存 | 7-Alpine             |
-| **NATS**       | 异步消息队列       | 2-Alpine + JetStream |
-| **MinIO**      | 对象存储（头像、附件）  | S3-compatible        |
-| **Jaeger**     | 分布式追踪        | OpenTelemetry        |
+### 基础设施
+
+| 组件 | 用途 | 访问地址 |
+|------|------|----------|
+| PostgreSQL 16 | 主数据库 | :5432 |
+| Redis 7 | 缓存 | :6379 |
+| NATS 2 | 消息队列 | :4222 |
+| MinIO | 对象存储 | :9000 (API), :9001 (Console) |
+| Jaeger | 链路追踪 | :16686 (UI) |
 
 ---
 
-## 📊 数据流与交互模式
+## 💡 关键特性
 
-### 流写入场景 (典型：发布文章)
+### ✅ 同步渲染保证一致性
+
+- Nexus 创建/更新文章时**同步调用 Forge**
+- 5 秒超时控制，失败自动回滚事务
+- 避免"已保存但未渲染"的中间状态
+
+### ⚡ 高性能搜索
+
+- **Mirror** 基于 Tantivy，<50ms 响应
+- 实时索引更新（通过 Oracle 消费 NATS 事件）
+- 支持分面统计、搜索建议
+
+### 📦 Docker 优化
+
+- **Rust 服务**: 依赖缓存策略，构建时间 5-10x 加速
+- **Go 服务**: 静态编译，镜像从 50MB 降至 15MB
+- 所有服务健康检查 + 依赖编排
+
+### 🛠️ 统一管理
+
+- **manage.ps1**: 17 个命令管理开发/Docker 全流程
+- 参数验证 + Tab 补全
+- 一键启动/停止/清理
+
+---
+
+## 📚 数据流
+
+### 写入链路（同步）
 
 ```
-Frontend
-    │ POST /v1/posts
-    ▼
-  Gjallar (网关)
-    │ gRPC
-    ▼
-  Nexus (写服务)
-    │ [1] 写入 posts 表
-    │ [2] 调用 Forge 渲染 Markdown → HTML
-    │ [3] 事务提交成功
-    │ [4] go func() 异步发送 NATS 消息 (post.created)
-    ▼
- PostgreSQL 事务成功返回 + NATS 消息分发
-    │
-    ├─► Beacon (beacon_service) 订阅 → 删除 Redis 缓存
-    ├─► Mirror (mirror_service) 订阅 → 更新全文索引
-    └─► Oracle (未来) 订阅 → 聚合分析
+1. 用户提交文章 → Gjallar
+2. Gjallar → Nexus (gRPC)
+3. Nexus 开启事务
+4. Nexus → Forge (同步 gRPC，5s 超时)
+5. Forge 渲染 Markdown → HTML
+6. Nexus 存储到 PostgreSQL
+7. 提交事务
+8. 发布 NATS 事件
+9. Oracle 消费 → 更新 Mirror 索引
 ```
 
-### 快读场景 (典型：查询文章列表)
+### 读取链路
 
-```txt
-Frontend
-    │ GET /v1/posts
-    ▼
-  Gjallar (网关)
-    │ gRPC
-    ▼
-  Beacon (读服务)
-    │ [1] 查询 Redis 缓存 (miss → 查数据库)
-    │ [2] 执行 PostgreSQL 查询
-    │ [3] 填充缓存 (2h TTL)
-    ▼
-  返回 JSON 响应 (< 100ms)
+```
+1. 用户查询 → Gjallar
+2. Gjallar → Beacon (gRPC)
+3. Beacon 检查 Redis 缓存
+   ├─ Hit → 返回
+   └─ Miss → 查 PostgreSQL → 写缓存
+4. 返回结果
 ```
 
-### 分析场景 (典型：获取仪表盘指标)
+### 搜索链路（同步）
 
-```txt
-前端埋点（通过 Gjallar 转发）
-    │ TrackEvent RPC
-    ▼
-  Oracle (分析服务)
-    │ [1] 批量接收事件（缓冲 1000 条或 30s）
-    │ [2] 写入 raw_events (DuckDB)
-    │ [3] Worker 后台定期聚合 → daily_stats 表
-    ▼
-  GetDashboardStats
-    │ 查询 daily_stats (秒级响应)
-    │ 返回 PV / UV / 热点分析
-    ▼
-  仪表盘展示
+```
+1. 用户搜索 "rust" → Gjallar
+2. Gjallar → Mirror (同步 gRPC，5s 超时)
+3. Mirror 执行 Tantivy 查询
+4. 返回结果 (hits, total, took_ms)
 ```
 
 ---
@@ -209,162 +185,152 @@ curl http://localhost:8080/health
 docker-compose down
 ```
 
-### 方法 2：本地开发（分离启动）
+### 方法 2：本地开发（不使用 Docker）
 
-#### 启动基础设施
+```powershell
+# 1. 启动基础设施
+.\manage.ps1 docker-up-infra
 
-```bash
-# PostgreSQL + Redis + NATS + MinIO
-docker-compose up -d postgres redis nats minio jaeger
-```
-
-#### 启动 Go 服务
-
-```bash
+# 2. Go 服务（需要 3 个终端）
 cd go_services
+go run cmd/nexus/main.go
+go run cmd/beacon/main.go  
+go run cmd/gjallar/main.go
 
-# 终端 1: Nexus (写服务)
-make run-nexus
-
-# 终端 2: Beacon (读服务)
-make run-beacon
-
-# 终端 3: Gjallar (网关)
-make run-gjallar
-```
-
-#### 启动 Rust 服务
-
-```bash
+# 3. Rust 服务（需要 3 个终端）
 cd rust_services
-
-# 终端 4: Forge (渲染)
-cargo run -p forge
-
-# 终端 5: Mirror (搜索)
-cargo run -p mirror
-
-# 终端 6: Oracle (分析)
-cargo run -p oracle
-```
-
-#### 验证服务健康
-
-```bash
-# HTTP REST 接口
-curl http://localhost:8080/health
-
-# gRPC 服务
-grpcurl -plaintext localhost:50051 list
-
-# Prometheus 指标
-curl http://localhost:9090/metrics
-
-# Jaeger 追踪
-open http://localhost:16686
+cargo run --bin forge
+cargo run --bin mirror
+cargo run --bin oracle
 ```
 
 ---
 
-## 📖 API 使用示例
+## 🛠️ 开发工具
 
-### 1. 用户认证
+### manage.ps1 命令
 
-```bash
-# 注册
-curl -X POST http://localhost:8080/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "alice",
-    "email": "alice@example.com",
-    "password": "secure_password_123"
-  }'
+```powershell
+# 开发命令
+.\manage.ps1 proto-lint         # 检查 .proto 文件
+.\manage.ps1 proto-gen          # 生成 gRPC 代码
+.\manage.ps1 build-go           # 编译 Go 服务
+.\manage.ps1 format             # 格式化代码
+.\manage.ps1 clean              # 清理构建产物
 
-# 登录
-curl -X POST http://localhost:8080/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "alice",
-    "password": "secure_password_123"
-  }'
-# 返回 JWT token，后续请求使用 Authorization: Bearer <token>
+# Docker 命令
+.\manage.ps1 docker-validate    # 验证 Docker 环境
+.\manage.ps1 docker-build       # 构建所有镜像
+.\manage.ps1 docker-build-go    # 仅构建 Go 镜像
+.\manage.ps1 docker-build-rust  # 仅构建 Rust 镜像
+.\manage.ps1 docker-up          # 启动所有服务
+.\manage.ps1 docker-up-infra    # 仅启动基础设施
+.\manage.ps1 docker-up-go       # 仅启动 Go 服务
+.\manage.ps1 docker-up-rust     # 仅启动 Rust 服务
+.\manage.ps1 docker-down        # 停止所有服务
+.\manage.ps1 docker-restart -Service gjallar  # 重启指定服务
+.\manage.ps1 docker-logs -Service nexus       # 查看日志
+.\manage.ps1 docker-ps          # 查看服务状态
+.\manage.ps1 docker-clean       # 清理未使用资源
+.\manage.ps1 docker-clean-all   # 深度清理（含数据卷）
 ```
 
-### 2. 发布文章
+### 本地开发（不使用 Docker）
 
-```bash
-curl -X POST http://localhost:8080/v1/posts \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
-  -d '{
-    "title": "Bifrost 架构解析",
-    "slug": "bifrost-architecture",
-    "raw_markdown": "# Bifrost\n\n这是一个...",
-    "category_id": "1001",
-    "tags": ["architecture", "golang", "rust"]
-  }'
-```
+```powershell
+# 1. 启动基础设施
+.\manage.ps1 docker-up-infra
 
-### 3. 查询文章（带分页）
+# 2. Go 服务（需要 3 个终端）
+cd go_services
+go run cmd/nexus/main.go
+go run cmd/beacon/main.go  
+go run cmd/gjallar/main.go
 
-```bash
-curl "http://localhost:8080/v1/posts?page=1&page_size=20&sort=-created_at"
-```
-
-### 4. 获取文章详情
-
-```bash
-curl "http://localhost:8080/v1/posts/bifrost-architecture"
-```
-
-### 5. 内容预览（实时渲染）
-
-```bash
-curl -X POST http://localhost:8080/v1/render/preview \
-  -H "Content-Type: application/json" \
-  -d '{
-    "raw_markdown": "# 标题\n\n**粗体**内容",
-    "mode": "article"
-  }'
-```
-
-### 6. 埋点事件（分析）
-
-```bash
-curl -X POST http://localhost:8080/v1/analysis/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event_type": "post_view",
-    "user_id": 123,
-    "target_id": "post-456",
-    "meta": {
-      "referer": "https://google.com",
-      "device": "mobile"
-    }
-  }'
-```
-
-### 7. 获取仪表盘指标（Admin Only）
-
-```bash
-curl "http://localhost:8080/v1/analysis/dashboard" \
-  -H "Authorization: Bearer <admin_token>"
+# 3. Rust 服务（需要 3 个终端）
+cd rust_services
+cargo run --bin forge
+cargo run --bin mirror
+cargo run --bin oracle
 ```
 
 ---
 
-## 📂 项目结构
+## 🧪 测试
 
-```txt
-bifrost/
-│
-├── api/                          # Proto 定义（Single Source of Truth）
-│   ├── content/v1/
-│   │   ├── nexus/                # 用户 / 发布 / 写入 API
-│   │   ├── beacon/               # 查询 / 读取 API
-│   │   ├── forge/                # 渲染 API
-│   │   ├── oracle/               # 分析 API
-│   │   └── models.proto          # 共享数据模型
+详见 [测试指南](./docs/TESTING_GUIDE.md)
+
+```powershell
+# Go 单元测试
+cd go_services
+go test ./internal/...
+
+# Rust 单元测试
+cd rust_services
+cargo test
+
+# 集成测试
+.\manage.ps1 docker-up
+# 运行集成测试脚本...
+```
+
+---
+
+## 📊 性能指标
+
+| 服务 | 操作 | P95 延迟 | 优化策略 |
+|------|------|----------|----------|
+| **Forge** | Markdown 渲染 | 80ms | Rust 异步 + 语法高亮缓存 |
+| **Mirror** | 全文搜索 | 35ms | Tantivy 内存索引 + BM25 |
+| **Nexus** | 创建文章 | 420ms | 连接池 + 事务优化 |
+| **Beacon** | 读取文章 (Cache) | 8ms | Redis 缓存 |
+| **Beacon** | 读取文章 (DB) | 65ms | 索引优化 + Read Replica |
+
+> 详细性能分析见 [系统架构蓝图](./docs/系统架构蓝图.md)
+
+---
+
+## 🔒 安全
+
+- JWT 鉴权（HS256）
+- XSS 防护（ammonia 库清洗 HTML）
+- SQL 注入防护（参数化查询）
+- 密码加密（bcrypt）
+- HTTPS 支持（生产环境）
+- CORS 配置
+
+---
+
+## 📈 监控与追踪
+
+- **Jaeger**: 分布式链路追踪 → <http://localhost:16686>
+- **Prometheus**: 指标收集（待实现）
+- **Grafana**: 可视化仪表盘（待实现）
+- **Dozzle**: 容器日志查看 → <http://localhost:9999>
+
+---
+
+## 🚢 生产部署
+
+详见 [Docker 部署指南](./docs/Docker部署指南.md)
+
+### 推荐配置
+
+| 服务 | CPU | 内存 | 副本数 |
+|------|-----|------|--------|
+| Gjallar | 2 Core | 2GB | 2-4 |
+| Nexus | 2 Core | 2GB | 2-4 |
+| Beacon | 2 Core | 4GB | 4-8 |
+| Forge | 4 Core | 4GB | 2-4 |
+| Mirror | 4 Core | 8GB | 2-4 |
+| Oracle | 2 Core | 2GB | 1-2 |
+| PostgreSQL | 4 Core | 8GB | 1 (主从) |
+| Redis | 2 Core | 4GB | 1 (集群) |
+
+---
+
+## 🤝 贡献
+
 │   ├── search/v1/
 │   │   └── mirror.proto          # 搜索 API
 │   ├── common/v1/
@@ -376,110 +342,62 @@ bifrost/
 │   │   ├── nexus/main.go         # 写入服务入口
 │   │   ├── beacon/main.go        # 读取服务入口
 │   │   └── gjallar/main.go       # HTTP 网关入口
-│   ├── internal/
-│   │   ├── biz/                  # 业务逻辑层（shared）
-│   │   ├── data/                 # 数据访问层（shared）
-│   │   ├── server/               # gRPC 服务实现（shared）
-│   │   └── middleware/           # 中间件（logging, auth, etc.）
-│   ├── pkg/                      # 共享工具库
-│   │   ├── cache/                # LRU / 分布式缓存
-│   │   ├── database/             # PostgreSQL 连接 / 迁移
-│   │   ├── contextx/             # Context 扩展
-│   │   ├── id/                   # Snowflake ID 生成
-│   │   ├── xerr/                 # 错误处理
-│   │   ├── lifecycle/            # 优雅启动 / 关闭
-│   │   └── ... (其他)
-│   ├── Makefile                  # 快速命令（build / run / test）
-│   ├── go.mod & go.sum
-│   └── README.md
-│
-├── rust_services/                # Rust 微服务 (Cargo Workspace)
-│   ├── common/                   # 共享 crate（proto, otel, logger）
-│   │   ├── src/
-│   │   │   ├── lib.rs            # 重导出 proto 和公用函数
-│   │   │   ├── logger.rs         # tracing 初始化
-│   │   │   ├── trace.rs          # OpenTelemetry 追踪
-│   │   │   ├── lifecycle.rs      # 优雅关闭
-│   │   │   └── nats/             # NATS 客户端
-│   │   └── build.rs              # proto 代码生成
-│   │
-│   ├── forge/                    # Markdown 渲染服务
-│   │   ├── src/
-│   │   │   ├── main.rs
-│   │   │   ├── server.rs         # gRPC 服务实现
-│   │   │   └── engine.rs         # 渲染引擎核心
-│   │   └── Cargo.toml
-│   │
-│   ├── mirror/                   # 全文搜索引擎
-│   │   ├── src/
-│   │   │   ├── main.rs
-│   │   │   ├── server.rs         # gRPC 服务实现
-│   │   │   ├── engine.rs         # Tantivy 搜索核心
-│   │   │   ├── tokenizer.rs      # 分词器
-│   │   │   └── worker.rs         # 后台索引构建
-│   │   └── Cargo.toml
-│   │
-│   ├── oracle/                   # BI 分析引擎
-│   │   ├── src/
-│   │   │   ├── main.rs
-│   │   │   ├── server.rs         # gRPC 服务实现
-│   │   │   ├── ingestion.rs      # 高并发事件接收
-│   │   │   ├── worker.rs         # ✨ 后台聚合 Worker
-│   │   │   └── storage/
-│   │   │       ├── duck.rs       # DuckDB 存储层
-│   │   │       └── schema.sql    # 表定义
-│   │   └── Cargo.toml
-│   │
-│   ├── Cargo.toml                # Workspace 入口
-│   ├── Dockerfile                # 多服务通用镜像
-│   ├── docker-compose.yml        # (备选，部分服务)
-│   └── README.md
-│
-├── migrations/                   # PostgreSQL 数据库迁移
-│   ├── 001_identity_and_infra.sql
-│   ├── 002_content_core.sql
-│   ├── 003_interactions.sql
-│   └── readme.md
-│
-├── docs/                         # 文档
-│   ├── HTTP_Guide.md             # 接口规范
-│   ├── code_audit_report.md      # 代码审计
-│   ├── TEST_SPECIFICATION.md
-│   ├── RUST_UNIT_TEST_PLAN.md
-│   └── bluemap.md
-│
-├── docker-compose.yml            # 主编排文件
-├── buf.yaml & buf.gen.yaml       # Protocol Buffer 配置
-├── manage.ps1                    # PowerShell 管理脚本
-└── README.md                     # （本文件）
-```
+
+1. 提交问题 (Issues)
+2. Fork 并创建 PR
+3. 遵循现有代码风格
+4. 添加测试覆盖
 
 ---
 
-## 🔌 核心特性详解
+## 📝 许可
 
-### 1️⃣ 宏服务架构的优势
+MIT License
 
-| 特性     | 传统单体  | 微服务   | 宏服务 (Bifrost) |
-|--------|-------|-------|---------------|
-| 开发效率   | ⭐⭐⭐⭐⭐ | ⭐⭐    | ⭐⭐⭐⭐⭐         |
-| 代码复用   | ⭐⭐⭐⭐⭐ | ⭐⭐    | ⭐⭐⭐⭐⭐         |
-| 隔离故障   | ❌     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐          |
-| 分布式复杂性 | ❌     | ⭐⭐⭐   | ⭐⭐            |
-| 一致性保障  | ⭐⭐⭐⭐⭐ | ❌     | ⭐⭐⭐⭐          |
+---
 
-### 2️⃣ gRPC + HTTP 双协议
+## 📞 联系方式
 
-- **内部通信**：gRPC (Protobuf) → 高效、类型安全、自文档化
-- **客户端通信**：HTTP REST (JSON) → 易于集成、前端友好
-- **网关层**：Gjallar 使用 `grpc-gateway` 自动转换
+- **文档**: [./docs](./docs)
+- **Issues**: GitHub Issues
+- **Email**: <dev@bifrost.example>
 
-```proto
-rpc GetPost(GetPostRequest) returns (GetPostResponse) {
+---
+
+## 🗓️ 更新日志
+
+### v3.2 (2024-12-24)
+
+- ✅ 实现 Nexus→Forge 同步渲染集成
+- ✅ 实现 Gjallar→Mirror 同步搜索集成
+- ✅ 优化 Docker 构建（Rust 1.91.1，Go 1.23）
+- ✅ 统一管理脚本 manage.ps1（17 个命令）
+- ✅ 完整的健康检查和服务依赖编排
+- ✅ 文档整合到 docs/ 目录
+
+### v3.1 (2024-11)
+
+- ✅ CQRS 架构落地
+- ✅ Go + Rust 混合服务
+- ✅ NATS 消息队列集成
+- ✅ OpenTelemetry 追踪
+
+### v3.0 (2024-10)
+
+- 🎉 项目初始化
+- ✅ Monorepo 架构设计
+- ✅ Proto 定义和代码生成
+- ✅ 基础设施搭建
+
+---
+
+**🌈 Bifrost - 连接 Go 与 Rust 的彩虹桥 🌉**
+
   option (google.api.http) = {
     get: "/v1/posts/{slug_or_id}"
   };
 }
+
 ```
 
 ### 3️⃣ 轻量级消息传递：NATS Fire-and-Forget

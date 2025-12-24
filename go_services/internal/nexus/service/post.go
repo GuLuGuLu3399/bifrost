@@ -137,9 +137,6 @@ func (s *PostService) UpdatePost(ctx context.Context, req *nexusv1.UpdatePostReq
 	}, nil
 }
 
-// UpdatePostRenderedContent 更新渲染后的内容 (内部接口)
-// 注：UpdatePostRenderedContent 内部接口已移除，改为在 UseCase 中调用 Forge 渲染并通过 Repo 更新渲染内容。
-
 // DeletePost 删除文章
 func (s *PostService) DeletePost(ctx context.Context, req *nexusv1.DeletePostRequest) (*nexusv1.DeletePostResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, postWriteTimeout)
