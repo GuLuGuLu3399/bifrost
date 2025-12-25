@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // https://nuxt.com/docs/guide/concepts/typescript
+  "files": [],
+  "include": ["tailwind.config.ts", "types/**/*.d.ts"]
+}

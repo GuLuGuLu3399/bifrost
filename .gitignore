@@ -105,6 +105,49 @@ apps/**/.fleet
 apps/**/.idea
 
 ############################
+# Frontend apps (Helm, Horizon)
+############################
+# Common Nuxt/Vite outputs
+frontend/apps/**/.nuxt
+frontend/apps/**/.nitro
+frontend/apps/**/.output
+frontend/apps/**/.cache
+frontend/apps/**/.data
+frontend/apps/**/dist
+frontend/apps/**/dist-ssr
+frontend/apps/**/.vite
+# Node dependencies and logs
+frontend/apps/**/node_modules/
+frontend/apps/**/logs
+frontend/apps/**/npm-debug.log*
+frontend/apps/**/yarn-debug.log*
+frontend/apps/**/yarn-error.log*
+frontend/apps/**/pnpm-debug.log*
+frontend/apps/**/lerna-debug.log*
+# Misc editor/project files
+frontend/apps/**/.fleet
+frontend/apps/**/.idea
+frontend/apps/**/.vscode/
+frontend/apps/**/.DS_Store
+frontend/apps/**/.env
+frontend/apps/**/.env.*
+!frontend/apps/**/.env.example
+frontend/apps/**/*.local
+frontend/apps/**/*.suo
+frontend/apps/**/*.ntvs*
+frontend/apps/**/*.njsproj
+frontend/apps/**/*.sln
+frontend/apps/**/*.sw?
+frontend/apps/**/src-tauri/target/
+
+# Frontend workspace root
+frontend/node_modules/
+frontend/**/node_modules/
+frontend/.turbo/
+frontend/**/dist
+frontend/**/.eslintcache
+
+############################
 # Proto / Generated Code
 ############################
 # NOTE: We intentionally DO NOT ignore *.pb.go because they are tracked.

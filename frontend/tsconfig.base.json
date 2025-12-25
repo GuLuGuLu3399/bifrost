@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "preserve",
+    "allowJs": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@bifrost/ui": ["packages/ui/src/index.ts"],
+      "@bifrost/ui/*": ["packages/ui/src/*"],
+      "@bifrost/ui/tailwind.config": ["packages/ui/tailwind.config.d.ts"],
+      "@bifrost/shared": ["packages/shared/src/index.ts"],
+      "@bifrost/shared/*": ["packages/shared/src/*"]
+    }
+  }
+}
