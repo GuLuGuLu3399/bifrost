@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	grpcClient "github.com/gulugulu3399/bifrost/internal/gjallar/infrastructure/grpc"
 	"github.com/gulugulu3399/bifrost/internal/pkg/observability/logger"
@@ -41,18 +42,52 @@ type SearchHitDTO struct {
 // ServeHTTP 实现 http.Handler 接口
 func (h *SearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
-	// 解析查询参数
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		query = r.URL.Query().Get("query")
+	if h.mirrorClient == nil {
+		http.Error(w, `{"error":"search service unavailable"}`, http.StatusServiceUnavailable)
+		return
 	}
 
-	page := parseInt32(r.URL.Query().Get("page"), 1)
-	pageSize := parseInt32(r.URL.Query().Get("page_size"), 20)
-	categoryID := parseInt64(r.URL.Query().Get("category_id"), 0)
-	tagID := parseInt64(r.URL.Query().Get("tag_id"), 0)
-	authorID := parseInt64(r.URL.Query().Get("author_id"), 0)
+	// 解析查询参数
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if query == "" {
+		query = strings.TrimSpace(r.URL.Query().Get("query"))
+	}
+
+	page, ok := parseOptionalInt32(r.URL.Query().Get("page"), 1)
+	if !ok {
+		writeBadRequest(w, "invalid page")
+		return
+	}
+	if page < 1 {
+		writeBadRequest(w, "page must be >= 1")
+		return
+	}
+
+	pageSize, ok := parseOptionalInt32(r.URL.Query().Get("page_size"), 20)
+	if !ok {
+		writeBadRequest(w, "invalid page_size")
+		return
+	}
+	if pageSize < 1 || pageSize > 100 {
+		writeBadRequest(w, "page_size must be between 1 and 100")
+		return
+	}
+
+	categoryID, ok := parseOptionalInt64(r.URL.Query().Get("category_id"), 0)
+	if !ok {
+		writeBadRequest(w, "invalid category_id")
+		return
+	}
+	tagID, ok := parseOptionalInt64(r.URL.Query().Get("tag_id"), 0)
+	if !ok {
+		writeBadRequest(w, "invalid tag_id")
+		return
+	}
+	authorID, ok := parseOptionalInt64(r.URL.Query().Get("author_id"), 0)
+	if !ok {
+		writeBadRequest(w, "invalid author_id")
+		return
+	}
 
 	// 记录请求日志
 	logger.WithContext(ctx).Info("Search request received",
@@ -126,14 +161,26 @@ type SuggestResponse struct {
 // ServeHTTP 实现 http.Handler 接口
 func (h *SuggestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
-	// 解析查询参数
-	prefix := r.URL.Query().Get("prefix")
-	if prefix == "" {
-		prefix = r.URL.Query().Get("q")
+	if h.mirrorClient == nil {
+		http.Error(w, `{"error":"suggest service unavailable"}`, http.StatusServiceUnavailable)
+		return
 	}
 
-	limit := parseInt32(r.URL.Query().Get("limit"), 5)
+	// 解析查询参数
+	prefix := strings.TrimSpace(r.URL.Query().Get("prefix"))
+	if prefix == "" {
+		prefix = strings.TrimSpace(r.URL.Query().Get("q"))
+	}
+
+	limit, ok := parseOptionalInt32(r.URL.Query().Get("limit"), 5)
+	if !ok {
+		writeBadRequest(w, "invalid limit")
+		return
+	}
+	if limit < 1 || limit > 20 {
+		writeBadRequest(w, "limit must be between 1 and 20")
+		return
+	}
 
 	// 调用 Mirror 服务
 	suggestions, err := h.mirrorClient.Suggest(ctx, prefix, limit)
@@ -158,24 +205,32 @@ func (h *SuggestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // 辅助函数
 
-func parseInt32(s string, defaultValue int32) int32 {
-	if s == "" {
-		return defaultValue
+func parseOptionalInt32(s string, defaultValue int32) (int32, bool) {
+	n := strings.TrimSpace(s)
+	if n == "" {
+		return defaultValue, true
 	}
-	v, err := strconv.ParseInt(s, 10, 32)
+	v, err := strconv.ParseInt(n, 10, 32)
 	if err != nil {
-		return defaultValue
+		return 0, false
 	}
-	return int32(v)
+	return int32(v), true
 }
 
-func parseInt64(s string, defaultValue int64) int64 {
-	if s == "" {
-		return defaultValue
+func parseOptionalInt64(s string, defaultValue int64) (int64, bool) {
+	n := strings.TrimSpace(s)
+	if n == "" {
+		return defaultValue, true
 	}
-	v, err := strconv.ParseInt(s, 10, 64)
+	v, err := strconv.ParseInt(n, 10, 64)
 	if err != nil {
-		return defaultValue
+		return 0, false
 	}
-	return v
+	return v, true
+}
+
+func writeBadRequest(w http.ResponseWriter, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }

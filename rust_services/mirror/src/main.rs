@@ -29,10 +29,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("missing required config: server.addr"))?;
 
-    let nats_cfg = config
-        .nats
+    let enable_nats_worker = config
+        .features
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("missing required config: nats.url"))?;
+        .and_then(|f| f.enable_nats_worker)
+        .unwrap_or(true);
 
     // 2. 初始化 tracing（风格对齐 forge）
     let json = config
@@ -56,21 +57,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Search Engine initialized at: {}", index_path);
 
     // 4. 启动 NATS Index Worker (后台运行)
-    let worker_engine = engine.clone();
-    let worker_nats_cfg = nats_cfg.clone();
+    if enable_nats_worker {
+        let nats_cfg = config
+            .nats
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("missing required config: nats.url"))?;
 
-    tokio::spawn(async move {
-        match IndexWorker::new(&worker_nats_cfg, worker_engine).await {
-            Ok(worker) => {
-                if let Err(e) = worker.run().await {
-                    error!("IndexWorker crashed: {:?}", e);
+        let worker_engine = engine.clone();
+        let worker_nats_cfg = nats_cfg.clone();
+
+        tokio::spawn(async move {
+            match IndexWorker::new(&worker_nats_cfg, worker_engine).await {
+                Ok(worker) => {
+                    if let Err(e) = worker.run().await {
+                        error!("IndexWorker crashed: {:?}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to start IndexWorker: {:?}", e);
                 }
             }
-            Err(e) => {
-                error!("Failed to start IndexWorker: {:?}", e);
-            }
-        }
-    });
+        });
+    } else {
+        info!("NATS index worker disabled by feature flag");
+    }
 
     // 5. 启动 gRPC Server
     let addr = server_cfg.addr.parse()?;

@@ -17,6 +17,7 @@ export interface AuthorInfo {
   id: string;
   nickname: string;
   avatar_key?: string;
+  avatarKey?: string;
 }
 
 // Category item
@@ -26,6 +27,7 @@ export interface CategoryItem {
   slug: string;
   description?: string;
   post_count?: number;
+  postCount?: number;
 }
 
 // Tag item
@@ -34,6 +36,7 @@ export interface TagItem {
   name: string;
   slug: string;
   post_count?: number;
+  postCount?: number;
 }
 
 // Post summary (for listings)
@@ -43,10 +46,17 @@ export interface PostSummary {
   slug: string;
   summary?: string;
   cover_image_key?: string;
+  coverImageKey?: string;
   view_count?: number;
+  viewCount?: number;
   like_count?: number;
-  published_at?: string;
-  updated_at?: string;
+  likeCount?: number;
+  comment_count?: number;
+  commentCount?: number;
+  published_at?: string | number;
+  publishedAt?: string | number;
+  updated_at?: string | number;
+  updatedAt?: string | number;
   author?: AuthorInfo;
   category?: CategoryItem;
   tags?: TagItem[];
@@ -55,19 +65,29 @@ export interface PostSummary {
 // Post detail (for full article page)
 export interface PostDetail extends PostSummary {
   html_body: string;
+  htmlBody?: string;
   toc_json?: JsonValue; // Table of contents
+  tocJson?: JsonValue;
   prev_post_id?: string;
+  prevPostId?: string;
   prev_post_slug?: string;
+  prevPostSlug?: string;
   prev_post_title?: string;
+  prevPostTitle?: string;
   next_post_id?: string;
+  nextPostId?: string;
   next_post_slug?: string;
+  nextPostSlug?: string;
   next_post_title?: string;
+  nextPostTitle?: string;
 }
 
 // Page response
 export interface PageResponse {
   next_page_token?: string;
+  nextPageToken?: string;
   total_count?: number;
+  totalCount?: number;
 }
 
 // API response for posts list
@@ -100,8 +120,11 @@ export interface SearchHit {
   title: string;
   slug: string;
   highlight_title?: string;
+  highlightTitle?: string;
   highlight_content?: string;
-  published_at?: string;
+  highlightContent?: string;
+  published_at?: string | number;
+  publishedAt?: string | number;
 }
 
 // Search facets
@@ -114,7 +137,14 @@ export interface SearchFacets {
 export interface SearchResponse {
   hits: SearchHit[];
   total_hits: number;
+  totalHits?: number;
   took_ms?: number;
+  tookMs?: number;
   facets?: SearchFacets;
-  page: PageResponse;
+}
+
+export interface SuggestResponse {
+  suggestions: string[];
+  took_ms?: number;
+  tookMs?: number;
 }

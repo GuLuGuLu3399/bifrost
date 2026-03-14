@@ -1,56 +1,54 @@
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { X, Minus, Square } from "lucide-vue-next";
+
+const isMaximized = ref(false);
 const appWindow = getCurrentWindow();
 
-const minimize = () => appWindow.minimize();
-const toggleMaximize = async () => {
-  const isMaximized = await appWindow.isMaximized();
-  isMaximized ? appWindow.unmaximize() : appWindow.maximize();
-};
-const close = () => appWindow.close();
+const maximizeLabel = computed(() => (isMaximized.value ? "还原" : "最大化"));
+
+async function minimizeWindow(): Promise<void> {
+    try {
+        await appWindow.minimize();
+    } catch {
+        // Ignore when running in plain browser mode.
+    }
+}
+
+async function toggleMaximizeWindow(): Promise<void> {
+    try {
+        await appWindow.toggleMaximize();
+        isMaximized.value = await appWindow.isMaximized();
+    } catch {
+        // Ignore when running in plain browser mode.
+    }
+}
+
+async function closeWindow(): Promise<void> {
+    try {
+        await appWindow.close();
+    } catch {
+        // Ignore when running in plain browser mode.
+    }
+}
 </script>
 
 <template>
-  <header
-    data-tauri-drag-region
-    class="flex h-10 w-full shrink-0 items-center justify-between border-b bg-background px-3 select-none z-50"
-  >
-    <div
-      class="flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-muted-foreground pointer-events-none"
-    >
-      HELM <span class="text-primary">///</span> ACCESS_TERMINAL
-    </div>
-
-    <div class="flex items-center gap-1 no-drag">
-      <button
-        @click="minimize"
-        class="titlebar-btn p-2 rounded-sm hover-bg-muted hover-text-primary"
-        aria-label="Minimize"
-      >
-        <Minus class="h-3 w-3" />
-      </button>
-      <button
-        @click="toggleMaximize"
-        class="titlebar-btn p-2 rounded-sm hover-bg-muted hover-text-primary"
-        aria-label="Maximize"
-      >
-        <Square class="h-3 w-3" />
-      </button>
-      <button
-        @click="close"
-        class="titlebar-btn p-2 rounded-sm hover-bg-destructive hover-text-destructive"
-        aria-label="Close"
-      >
-        <X class="h-3 w-3" />
-      </button>
-    </div>
-  </header>
+    <header class="flex h-[38px] select-none items-center justify-between border-b border-slate-200 bg-white/90 pl-3"
+        data-tauri-drag-region>
+        <div class="flex h-full items-center" data-tauri-drag-region>
+            <h1 class="text-sm font-semibold tracking-wide text-slate-700" data-tauri-drag-region>Helm Admin</h1>
+        </div>
+        <div class="flex h-full items-center" data-tauri-drag-region="false">
+            <button
+                class="h-full w-11 border-none bg-transparent text-base text-slate-700 transition-colors hover:bg-slate-100"
+                title="最小化" @click="minimizeWindow">_</button>
+            <button
+                class="h-full w-11 border-none bg-transparent text-base text-slate-700 transition-colors hover:bg-slate-100"
+                :title="maximizeLabel" @click="toggleMaximizeWindow">▢</button>
+            <button
+                class="h-full w-11 border-none bg-transparent text-base text-slate-700 transition-colors hover:bg-rose-600 hover:text-white"
+                title="关闭" @click="closeWindow">×</button>
+        </div>
+    </header>
 </template>
-
-<style scoped>
-/* No extra styles; relies on global utility classes */
-.no-drag {
-  -webkit-app-region: no-drag;
-}
-</style>

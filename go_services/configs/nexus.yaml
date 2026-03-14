@@ -5,6 +5,10 @@ app:
   version: 1.0.0
   env: dev
 
+features:
+  enable_messenger: true
+  enable_storage: true
+
 logger:
   level: info
   format: json

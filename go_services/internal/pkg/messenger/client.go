@@ -3,6 +3,7 @@ package messenger
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gulugulu3399/bifrost/internal/pkg/xerr"
 	"github.com/nats-io/nats.go"
@@ -102,5 +103,83 @@ func (c *Client) Close() error {
 	// 尽量优雅退出：停止接收新消息并 flush pending publish
 	_ = c.conn.Drain()
 	c.conn.Close()
+	return nil
+}
+
+// EnsureStream 校验 JetStream Stream 存在；若不存在则创建。
+func (c *Client) EnsureStream(name string, subjects []string) error {
+	if c.conn == nil {
+		return xerr.New(xerr.CodeInternal, "nats connection is nil")
+	}
+	if name == "" {
+		return xerr.New(xerr.CodeBadRequest, "stream name is required")
+	}
+	if len(subjects) == 0 {
+		return xerr.New(xerr.CodeBadRequest, "stream subjects are required")
+	}
+
+	js, err := c.conn.JetStream()
+	if err != nil {
+		return xerr.Wrap(err, xerr.CodeInternal, "jetstream init failed")
+	}
+
+	if _, err := js.StreamInfo(name); err == nil {
+		return nil
+	}
+
+	if _, err := js.AddStream(&nats.StreamConfig{
+		Name:     name,
+		Subjects: subjects,
+	}); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "already") {
+			return nil
+		}
+		return xerr.Wrap(err, xerr.CodeInternal, fmt.Sprintf("create stream %s failed", name))
+	}
+
+	return nil
+}
+
+// EnsurePullConsumer 校验 Durable Pull Consumer 存在；若不存在则创建。
+func (c *Client) EnsurePullConsumer(streamName, consumerName, filterSubject string) error {
+	if c.conn == nil {
+		return xerr.New(xerr.CodeInternal, "nats connection is nil")
+	}
+	if streamName == "" || consumerName == "" || filterSubject == "" {
+		return xerr.New(xerr.CodeBadRequest, "stream/consumer/filter are required")
+	}
+
+	js, err := c.conn.JetStream()
+	if err != nil {
+		return xerr.Wrap(err, xerr.CodeInternal, "jetstream init failed")
+	}
+
+	if _, err := js.ConsumerInfo(streamName, consumerName); err == nil {
+		return nil
+	}
+
+	_, err = js.AddConsumer(streamName, &nats.ConsumerConfig{
+		Durable:       consumerName,
+		FilterSubject: filterSubject,
+		AckPolicy:     nats.AckExplicitPolicy,
+	})
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "already") {
+			return nil
+		}
+		return xerr.Wrap(err, xerr.CodeInternal, fmt.Sprintf("create consumer %s failed", consumerName))
+	}
+
+	return nil
+}
+
+// EnsureDefaultContentTopology 确保内容事件链路所需的默认 Stream 与 Consumer 已就绪。
+func (c *Client) EnsureDefaultContentTopology() error {
+	if err := c.EnsureStream(StreamContent, []string{SubjectContentAll}); err != nil {
+		return err
+	}
+	if err := c.EnsurePullConsumer(StreamContent, ConsumerMirrorIndexer, SubjectPostWildcard); err != nil {
+		return err
+	}
 	return nil
 }

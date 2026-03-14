@@ -1,6 +1,6 @@
 import { useDebounceFn } from "@vueuse/core";
 import { ref, computed, watch } from "vue";
-import type { SearchResponse } from "@bifrost/shared";
+import type { SearchResponse, SuggestResponse } from "@bifrost/shared";
 import { useApi } from "./useApi";
 
 /**
@@ -9,7 +9,7 @@ import { useApi } from "./useApi";
  */
 export const useSearch = () => {
   const query = ref("");
-  const page = ref(1);
+  const pageToken = ref("");
   const pageSize = 10;
   const categoryId = ref<string>();
   const tagId = ref<string>();
@@ -20,10 +20,15 @@ export const useSearch = () => {
   const isSearching = ref(false);
 
   // 使用 immediate: false 和 watch: false，由 debouncedSearch 手动触发
-  const { data: searchResult, pending } = useApi<SearchResponse>("/v1/search", {
+  const {
+    data: searchResult,
+    pending,
+    execute: executeSearch,
+  } = useApi<SearchResponse>("/v1/search", {
     query: computed(() => ({
       query: query.value,
       "page.page_size": pageSize,
+      ...(pageToken.value && { "page.page_token": pageToken.value }),
       include_facets: true,
       ...(categoryId.value && { "filter.category_id": categoryId.value }),
       ...(tagId.value && { "filter.tag_id": tagId.value }),
@@ -39,12 +44,16 @@ export const useSearch = () => {
   });
 
   // 防抖执行搜索（延迟 300ms）
-  const debouncedSearch = useDebounceFn(() => {
+  const debouncedSearch = useDebounceFn(async () => {
     if (!query.value.trim()) {
       searchResult.value = undefined;
+      suggestions.value = undefined;
+      isSearching.value = false;
       return;
     }
     isSearching.value = true;
+    await Promise.all([executeSearch(), executeSuggest()]);
+    isSearching.value = false;
   }, 300);
 
   // 监听 query 变化，触发防抖搜索
@@ -53,31 +62,33 @@ export const useSearch = () => {
   });
 
   // 搜索建议
-  const { data: suggestions } = useApi("/v1/search/suggest", {
-    query: computed(() => ({
-      prefix: query.value,
-      limit: 8,
-    })),
-    immediate: false,
-    watch: false,
-  });
+  const { data: suggestions, execute: executeSuggest } =
+    useApi<SuggestResponse>("/v1/search/suggest", {
+      query: computed(() => ({
+        prefix: query.value,
+        limit: 8,
+      })),
+      immediate: false,
+      watch: false,
+    });
+
+  const suggestionList = computed(() => suggestions.value?.suggestions ?? []);
 
   // 监听搜索建议
   const showSuggestions = computed(() => {
-    return (
-      query.value.trim() && suggestions.value && suggestions.value.length > 0
-    );
+    return query.value.trim() && suggestionList.value.length > 0;
   });
 
   // 选择建议
   const selectSuggestion = (suggestion: string) => {
     query.value = suggestion;
+    void executeSearch();
   };
 
   return {
     // 输入
     query,
-    page,
+    pageToken,
     categoryId,
     tagId,
     dateRangeStart,
@@ -85,7 +96,7 @@ export const useSearch = () => {
 
     // 输出
     searchResult,
-    suggestions,
+    suggestions: suggestionList,
     showSuggestions,
     pending,
     isSearching,

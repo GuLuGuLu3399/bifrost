@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -74,7 +75,53 @@ func New(ctx context.Context, nexusConn *grpc.ClientConn, beaconConn *grpc.Clien
 	// 其他所有路由由 gRPC Gateway 处理
 	rootMux.Handle("/", mux)
 
-	return rootMux, nil
+	return stripEmptyQueryParams(rootMux), nil
+}
+
+// stripEmptyQueryParams 移除 query string 中空值参数。
+// grpc-gateway 对 int64/int32 字段不容忍空字符串（会触发 strconv.ParseInt 错误），
+// 这里把 "" / 空白 / null / undefined 都视为“未传”。
+func stripEmptyQueryParams(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		changed := false
+		for k, vals := range q {
+			filtered := vals[:0]
+			for _, v := range vals {
+				nv, keep := normalizeQueryValue(v)
+				if !keep {
+					continue
+				}
+				filtered = append(filtered, nv)
+			}
+			if len(filtered) != len(vals) {
+				changed = true
+				if len(filtered) == 0 {
+					q.Del(k)
+				} else {
+					q[k] = filtered
+				}
+			}
+		}
+		if changed {
+			r2 := r.Clone(r.Context())
+			r2.URL.RawQuery = q.Encode()
+			next.ServeHTTP(w, r2)
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+func normalizeQueryValue(v string) (string, bool) {
+	n := strings.TrimSpace(v)
+	if n == "" {
+		return "", false
+	}
+	if strings.EqualFold(n, "null") || strings.EqualFold(n, "undefined") {
+		return "", false
+	}
+	return n, true
 }
 
 // customErrorHandler 自定义错误处理

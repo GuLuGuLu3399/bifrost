@@ -4,17 +4,18 @@ mod image_processor;
 // 1. 修改引入：使用新的响应结构体 GetUploadTicketResponse
 use http_client::{HttpClient, LoginResponse, GetUploadTicketResponse};
 use serde::Deserialize;
+use serde_json::Value;
 use image_processor::ImageProcessor;
 use tauri::State;
 
-/// Application state holding the HTTP client
+/// 持有 HTTP 客户端的应用状态
 struct AppState {
     http_client: HttpClient,
 }
 
 impl AppState {
     fn new() -> Self {
-        // Default to localhost:8080
+        // 默认使用本地网关地址
         let base_url = std::env::var("GJALLAR_URL")
             .unwrap_or_else(|_| "http://localhost:8080".to_string());
         
@@ -24,28 +25,27 @@ impl AppState {
     }
 }
 
-/// Login command
+/// 登录命令
 #[tauri::command]
 async fn login_cmd(
-    username: String,
+    identifier: String,
     password: String,
     state: State<'_, AppState>,
 ) -> Result<LoginResponse, String> {
     let client = &state.http_client;
 
-    // http_client.rs 内部已经处理了 "username" -> "identifier" 的字段映射
-    client.login(username, password)
+    client.login(identifier, password)
         .await
         .map_err(|e| format!("Login failed: {}", e))
 }
 
-/// Upload image command
+/// 图片上传命令
 #[tauri::command]
 async fn upload_image_cmd(
     file_path: String,
     state: State<'_, AppState>,
 ) -> Result<GetUploadTicketResponse, String> { // 2. 修改返回类型
-    // Step 1: Process image to WebP
+    // 第一步：将图片处理为 WebP
     let path_for_processing = file_path.clone();
     
     // 图片处理较重，放在 blocking 线程池中执行
@@ -56,10 +56,10 @@ async fn upload_image_cmd(
     .map_err(|e| format!("Task failed: {}", e))?
     .map_err(|e| format!("Image processing failed: {}", e))?;
 
-    // Step 2: Generate filename (e.g., "myimage.png" -> "myimage.webp")
+    // 第二步：生成目标文件名（例如 myimage.png -> myimage.webp）
     let file_name = ImageProcessor::generate_webp_filename(&file_path);
 
-    // Step 3: Upload using the new Ticket -> PUT flow
+    // 第三步：按 Ticket -> PUT 流程上传
     let client = &state.http_client;
 
     // client.upload_image 现在会执行两步：
@@ -70,7 +70,7 @@ async fn upload_image_cmd(
         .map_err(|e| format!("Upload failed: {}", e))
 }
 
-/// Registration DTO from frontend
+/// 前端注册请求 DTO
 #[derive(Debug, Deserialize)]
 struct RegisterDto {
     username: String,
@@ -78,7 +78,7 @@ struct RegisterDto {
     password: String,
 }
 
-/// Register command
+/// 注册命令
 #[tauri::command]
 async fn register_cmd(dto: RegisterDto, state: State<'_, AppState>) -> Result<String, String> {
     let client = &state.http_client;
@@ -89,7 +89,7 @@ async fn register_cmd(dto: RegisterDto, state: State<'_, AppState>) -> Result<St
         .map_err(|e| format!("Registration failed: {}", e))
 }
 
-/// Check authentication status
+/// 检查认证状态
 #[tauri::command]
 fn is_authenticated(state: State<'_, AppState>) -> Result<bool, String> {
     let client = &state.http_client;
@@ -97,15 +97,79 @@ fn is_authenticated(state: State<'_, AppState>) -> Result<bool, String> {
     Ok(matches!(client.get_token(), Some(t) if !t.is_empty()))
 }
 
-/// Logout command
+/// 退出登录命令
 #[tauri::command]
 fn logout_cmd(state: State<'_, AppState>) -> Result<(), String> {
     let client = &state.http_client;
-    // 传入空字符串或特定逻辑来清除 Token
-    // 这里假设 set_token 只是简单覆盖
-    // 更好的做法是在 HttpClient 加一个 clear_token 方法
-    client.set_token("".to_string()); 
+    client.clear_token();
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ListPostsQueryDto {
+    page_size: Option<i32>,
+    page_token: Option<String>,
+    category_id: Option<i64>,
+    tag_id: Option<i64>,
+    author_id: Option<i64>,
+}
+
+#[tauri::command]
+async fn fetch_profile_cmd(state: State<'_, AppState>) -> Result<Value, String> {
+    let client = &state.http_client;
+    client
+        .get_profile()
+        .await
+        .map_err(|e| format!("Fetch profile failed: {}", e))
+}
+
+#[tauri::command]
+async fn list_posts_cmd(
+    query: Option<ListPostsQueryDto>,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let client = &state.http_client;
+    let query = query.unwrap_or(ListPostsQueryDto {
+        page_size: None,
+        page_token: None,
+        category_id: None,
+        tag_id: None,
+        author_id: None,
+    });
+
+    client
+        .list_posts(http_client::ListPostsQuery {
+            page_size: query.page_size,
+            page_token: query.page_token,
+            category_id: query.category_id,
+            tag_id: query.tag_id,
+            author_id: query.author_id,
+        })
+        .await
+        .map_err(|e| format!("List posts failed: {}", e))
+}
+
+#[tauri::command]
+async fn gateway_request_cmd(
+    method: String,
+    path: String,
+    query: Option<Value>,
+    body: Option<Value>,
+    auth_required: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let client = &state.http_client;
+    client
+        .gateway_request(
+            &method,
+            &path,
+            query,
+            body,
+            auth_required.unwrap_or(true),
+        )
+        .await
+        .map_err(|e| format!("Gateway request failed: {}", e))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -120,6 +184,9 @@ pub fn run() {
             upload_image_cmd,
             is_authenticated,
             logout_cmd,
+            fetch_profile_cmd,
+            list_posts_cmd,
+            gateway_request_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

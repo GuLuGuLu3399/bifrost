@@ -154,7 +154,11 @@ func (r *categoryRepo) Delete(ctx context.Context, id int64) error {
 
 // GetByID 根据 ID 获取
 func (r *categoryRepo) GetByID(ctx context.Context, id int64) (*biz.Category, error) {
-	query := `SELECT * FROM categories WHERE id = $1`
+	query := `
+		SELECT id, name, slug, description, post_count, version, created_at, updated_at
+		FROM categories
+		WHERE id = $1
+	`
 
 	var po categoryPO
 	db := r.data.DB(ctx)
@@ -171,7 +175,11 @@ func (r *categoryRepo) GetByID(ctx context.Context, id int64) (*biz.Category, er
 // ListAll 获取所有分类
 func (r *categoryRepo) ListAll(ctx context.Context) ([]*biz.Category, error) {
 	// 按创建时间倒序，方便管理
-	query := `SELECT * FROM categories ORDER BY created_at DESC`
+	query := `
+		SELECT id, name, slug, description, post_count, version, created_at, updated_at
+		FROM categories
+		ORDER BY created_at DESC
+	`
 
 	var pos []categoryPO
 	db := r.data.DB(ctx)

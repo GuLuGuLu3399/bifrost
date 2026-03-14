@@ -1,75 +1,36 @@
-# Nuxt Minimal Starter
+﻿# HORIZON
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Horizon 是 Bifrost 的 Nuxt 前台站点（内容展示与搜索）。
 
-## Setup
-
-Make sure to install dependencies:
+## 运行
 
 ```bash
-# npm
-npm install
-
-# pnpm
+cd frontend
 pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+pnpm --filter @bifrost/horizon dev
 ```
 
-## Development Server
+默认开发端口：`http://localhost:3001`。
 
-Start the development server on `http://localhost:3000`:
+## 环境变量
 
-```bash
-# npm
-npm run dev
+- `API_BASE`：默认 `http://localhost:8080`
+- `CDN_URL`：静态资源域名
 
-# pnpm
-pnpm dev
+## 页面与能力
 
-# yarn
-yarn dev
+- `/`：文章列表（Beacon）
+- `/posts/[slug]`：文章详情 SSR
+- `/search`：全文检索（Mirror）
+- `/auth/login`：登录
 
-# bun
-bun run dev
-```
+## 接口调用约定
 
-## Production
+- 页面 setup 场景可使用 `useApi/useFetch`。
+- 用户交互事件（如点击登录）请使用 `$fetch`。
+- 调试环境可展示后端错误响应，生产环境需统一错误提示。
 
-Build the application for production:
+## 相关文档
 
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+- [ARCHITECTURE](./ARCHITECTURE.md)
+- [FRONTEND_API](../../../docs/FRONTEND_API.md)

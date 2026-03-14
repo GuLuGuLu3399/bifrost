@@ -22,10 +22,39 @@ export const getImageUrl = (key?: string): string => {
 /**
  * 格式化日期为简单格式（yyyy-MM-dd）
  */
-export const formatDate = (dateStr?: string): string => {
-  if (!dateStr) return "";
+function normalizeDateInput(value?: string | number): Date | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const ms = value > 1_000_000_000_000 ? value : value * 1000;
+    return new Date(ms);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      if (Number.isFinite(parsed)) {
+        const ms = parsed > 1_000_000_000_000 ? parsed : parsed * 1000;
+        return new Date(ms);
+      }
+    }
+    return new Date(trimmed);
+  }
+
+  return null;
+}
+
+export const formatDate = (dateStr?: string | number): string => {
+  const date = normalizeDateInput(dateStr);
+  if (!date || Number.isNaN(date.getTime())) return "";
   try {
-    return new Date(dateStr).toLocaleDateString("zh-CN");
+    return date.toLocaleDateString("zh-CN");
   } catch {
     return "";
   }
@@ -34,10 +63,11 @@ export const formatDate = (dateStr?: string): string => {
 /**
  * 格式化日期为详细格式（yyyy-MM-dd HH:mm）
  */
-export const formatDateDetailed = (dateStr?: string): string => {
-  if (!dateStr) return "";
+export const formatDateDetailed = (dateStr?: string | number): string => {
+  const date = normalizeDateInput(dateStr);
+  if (!date || Number.isNaN(date.getTime())) return "";
   try {
-    return new Date(dateStr).toLocaleString("zh-CN", {
+    return date.toLocaleString("zh-CN", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -52,11 +82,11 @@ export const formatDateDetailed = (dateStr?: string): string => {
 /**
  * 相对时间格式（如"2小时前"）
  */
-export const formatRelativeTime = (dateStr?: string): string => {
-  if (!dateStr) return "";
+export const formatRelativeTime = (dateStr?: string | number): string => {
+  const past = normalizeDateInput(dateStr);
+  if (!past || Number.isNaN(past.getTime())) return "";
   try {
     const now = new Date();
-    const past = new Date(dateStr);
     const diff = now.getTime() - past.getTime();
 
     const seconds = Math.floor(diff / 1000);

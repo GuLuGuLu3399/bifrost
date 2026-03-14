@@ -9,6 +9,11 @@ import (
 type NexusConfig struct {
 	BaseConfig `mapstructure:",squash" yaml:",inline"`
 
+	Features struct {
+		EnableMessenger bool `mapstructure:"enable_messenger" yaml:"enable_messenger"`
+		EnableStorage   bool `mapstructure:"enable_storage" yaml:"enable_storage"`
+	} `mapstructure:"features" yaml:"features"`
+
 	Server struct {
 		GRPCAddr string `mapstructure:"grpc_addr" yaml:"grpc_addr"`
 	} `mapstructure:"server" yaml:"server"`
@@ -80,6 +85,8 @@ func LoadNexus(path string) (*NexusConfig, error) {
 		"logger.format":                    "json",
 		"observability.otlp_endpoint":      "localhost:4317",
 		"server.grpc_addr":                 ":9001",
+		"features.enable_messenger":        true,
+		"features.enable_storage":          true,
 		"snowflake_node":                   int64(1),
 		"security.jwt_expiration":          "24h",
 		"data.database.driver":             "pgx",

@@ -1,145 +1,73 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
-import { invoke } from "@tauri-apps/api/core";
-import {
-  Button,
-  Input,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@bifrost/ui";
+import { RouterLink, useRouter } from "vue-router";
+import { registerUser } from "@/services/helmApi";
 
-const router = useRouter();
+const username = ref("");
+const email = ref("");
+const password = ref("");
 const loading = ref(false);
-const errorMsg = ref("");
+const result = ref("等待提交");
+const router = useRouter();
+const isDev = import.meta.env.DEV;
 
-const form = ref({
-  username: "",
-  email: "",
-  password: "",
-  confirmPassword: "",
-});
-
-const handleRegister = async () => {
-  errorMsg.value = "";
-  if (form.value.password !== form.value.confirmPassword) {
-    errorMsg.value = "ERROR: Passwords do not match";
-    return;
-  }
-  if (!form.value.username || !form.value.email || !form.value.password) {
-    errorMsg.value = "ERROR: Missing required fields";
-    return;
-  }
-  try {
+async function submit(): Promise<void> {
     loading.value = true;
-    await invoke("register_cmd", {
-      dto: {
-        username: form.value.username,
-        email: form.value.email,
-        password: form.value.password,
-      },
-    });
-    alert("User Created. Redirecting to Login...");
-    router.push("/auth/login");
-  } catch (e: any) {
-    errorMsg.value = `SYSTEM_HALT: ${e}`;
-  } finally {
-    loading.value = false;
-  }
-};
+    try {
+        await registerUser({
+            username: username.value,
+            email: email.value,
+            password: password.value,
+        });
+        result.value = "注册成功，正在跳转到登录页";
+        window.setTimeout(() => {
+            void router.replace("/auth/login");
+        }, 600);
+    } catch (error) {
+        result.value = `注册失败: ${String(error)}`;
+    } finally {
+        loading.value = false;
+    }
+}
 </script>
 
 <template>
-  <div class="flex h-full w-full items-center justify-center p-4">
-    <Card
-      class="w-[400px] border-primary/50 shadow-none bg-background/95 backdrop-blur"
-    >
-      <CardHeader
-        class="pb-2 text-center border-b"
-        style="border-color: rgba(255, 255, 255, 0.2)"
-      >
-        <CardTitle class="text-xl font-mono tracking-tighter text-primary">
-          > NEW_USER_REGISTRATION_
-        </CardTitle>
-      </CardHeader>
-      <CardContent class="pt-6 space-y-4">
-        <div class="space-y-2">
-          <label
-            class="text-xs font-mono text-muted-foreground"
-            style="margin-left: 4px"
-            >IDENTITY (USERNAME)</label
-          >
-          <Input
-            v-model="form.username"
-            placeholder="operator_01"
-            class="font-mono"
-          />
+    <section class="w-full max-w-xl space-y-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+        <header>
+            <div class="flex gap-2 rounded-full bg-slate-100 p-1 text-sm">
+                <RouterLink to="/auth/login" class="rounded-full px-4 py-2 font-medium text-slate-600">登录</RouterLink>
+                <RouterLink to="/auth/register" class="rounded-full bg-slate-900 px-4 py-2 font-medium text-white">注册
+                </RouterLink>
+            </div>
+            <h2 class="mt-5 text-2xl font-semibold text-slate-900">创建新的管理员账号</h2>
+            <p class="mt-2 text-sm text-slate-600">注册仍然保留在独立认证中心，不再占用后台导航入口。</p>
+        </header>
+
+        <div class="grid gap-4">
+            <label>
+                <span class="mb-1 block text-xs font-medium text-slate-600">用户名</span>
+                <input v-model="username" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                    type="text" placeholder="superadmin" />
+            </label>
+            <label>
+                <span class="mb-1 block text-xs font-medium text-slate-600">邮箱</span>
+                <input v-model="email" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm" type="email"
+                    placeholder="admin@example.com" />
+            </label>
+            <label>
+                <span class="mb-1 block text-xs font-medium text-slate-600">密码</span>
+                <input v-model="password" class="w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                    type="password" placeholder="请设置密码" />
+            </label>
+            <div class="flex justify-end">
+                <button
+                    class="rounded-xl bg-steel-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-steel-700 disabled:opacity-50"
+                    :disabled="loading" @click="submit">注册</button>
+            </div>
         </div>
-        <div class="space-y-2">
-          <label
-            class="text-xs font-mono text-muted-foreground"
-            style="margin-left: 4px"
-            >COMM_LINK (EMAIL)</label
-          >
-          <Input
-            v-model="form.email"
-            type="email"
-            placeholder="op@bifrost.com"
-            class="font-mono"
-          />
-        </div>
-        <div class="grid md-cols-2" style="gap: 16px">
-          <div class="space-y-2">
-            <label
-              class="text-xs font-mono text-muted-foreground"
-              style="margin-left: 4px"
-              >SECRET</label
-            >
-            <Input v-model="form.password" type="password" class="font-mono" />
-          </div>
-          <div class="space-y-2">
-            <label
-              class="text-xs font-mono text-muted-foreground"
-              style="margin-left: 4px"
-              >CONFIRM</label
-            >
-            <Input
-              v-model="form.confirmPassword"
-              type="password"
-              class="font-mono"
-            />
-          </div>
-        </div>
-        <div
-          v-if="errorMsg"
-          class="p-2 border bg-destructive/10 text-destructive text-xs font-mono"
-          style="border-color: rgba(255, 0, 0, 0.4)"
-        >
-          {{ errorMsg }}
-        </div>
-      </CardContent>
-      <CardFooter
-        class="flex justify-between border-t"
-        style="border-color: rgba(255, 255, 255, 0.2); padding-top: 16px"
-      >
-        <Button
-          variant="ghost"
-          @click="router.push('/auth/login')"
-          class="text-xs font-mono text-muted-foreground"
-        >
-          <span>&lt; BACK_TO_LOGIN</span>
-        </Button>
-        <Button
-          :disabled="loading"
-          @click="handleRegister"
-          class="font-mono font-bold tracking-wide"
-        >
-          {{ loading ? "PROCESSING..." : "INIT_SEQUENCE" }}
-        </Button>
-      </CardFooter>
-    </Card>
-  </div>
+
+        <pre v-if="isDev"
+            class="max-h-72 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-emerald-200">{{ result }}</pre>
+        <p v-else class="text-sm text-slate-500">{{ result }}</p>
+    </section>
 </template>

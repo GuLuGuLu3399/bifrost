@@ -39,11 +39,13 @@ type postPO struct {
 
 	// NULLABLE 字段
 	Summary  sql.NullString `db:"summary"`
+	ResourceKey sql.NullString `db:"resource_key"`
+	CoverImageKey sql.NullString `db:"cover_image_key"`
 	HtmlBody sql.NullString `db:"html_body"`
 	TocJson  sql.NullString `db:"toc_json"`
 
-	Status       int32         `db:"status"`      // NOT NULL
-	Visibility   int32         `db:"visibility"`  // NOT NULL
+	Status       string        `db:"status"`      // NOT NULL (schema: VARCHAR)
+	Visibility   string        `db:"visibility"`  // NOT NULL (schema: VARCHAR)
 	AuthorID     int64         `db:"author_id"`   // NOT NULL
 	CategoryID   sql.NullInt64 `db:"category_id"` // NULLABLE (FK)
 	Version      int64         `db:"version"`     // NOT NULL
@@ -63,8 +65,8 @@ func (po *postPO) toEntity() *biz.Post {
 		Title:        po.Title,
 		Slug:         po.Slug,
 		RawMarkdown:  po.RawMarkdown,
-		Status:       contentv1.PostStatus(po.Status),
-		Visibility:   contentv1.PostVisibility(po.Visibility),
+		Status:       dbStatusToProto(po.Status),
+		Visibility:   dbVisibilityToProto(po.Visibility),
 		AuthorID:     po.AuthorID,
 		Version:      po.Version,
 		ViewCount:    po.ViewCount,
@@ -76,6 +78,8 @@ func (po *postPO) toEntity() *biz.Post {
 
 	// 处理 NULLABLE 字段
 	post.Summary = nullString(po.Summary)
+	post.ResourceKey = nullString(po.ResourceKey)
+	post.CoverImageKey = nullString(po.CoverImageKey)
 	post.HtmlBody = nullString(po.HtmlBody)
 	post.TocJson = nullString(po.TocJson)
 	post.CategoryID = nullInt64(po.CategoryID)
@@ -108,8 +112,8 @@ func (r *postRepo) Create(ctx context.Context, post *biz.Post) (int64, error) {
 		Title:        post.Title,
 		Slug:         post.Slug,
 		RawMarkdown:  post.RawMarkdown, // NOT NULL，直接赋值
-		Status:       int32(post.Status),
-		Visibility:   int32(post.Visibility),
+		Status:       protoStatusToDB(post.Status),
+		Visibility:   protoVisibilityToDB(post.Visibility),
 		AuthorID:     post.AuthorID,
 		Version:      post.Version,
 		ViewCount:    0,
@@ -121,6 +125,8 @@ func (r *postRepo) Create(ctx context.Context, post *biz.Post) (int64, error) {
 
 	// 处理 NULLABLE 字段
 	po.Summary = stringToNullString(post.Summary)
+	po.ResourceKey = stringToNullString(post.ResourceKey)
+	po.CoverImageKey = stringToNullString(post.CoverImageKey)
 	po.CategoryID = int64ToNullInt64(post.CategoryID)
 	po.PublishedAt = ptrTimeToNullTime(post.PublishedAt)
 
@@ -150,7 +156,7 @@ func (r *postRepo) List(ctx context.Context, filter *biz.PostListFilter) ([]*biz
 
 	if filter.Status != contentv1.PostStatus_POST_STATUS_UNSPECIFIED {
 		baseQuery += ` AND status = :status`
-		args["status"] = int32(filter.Status)
+		args["status"] = protoStatusToDB(filter.Status)
 	}
 
 	// 3. 查询总数
@@ -186,7 +192,12 @@ func (r *postRepo) List(ctx context.Context, filter *biz.PostListFilter) ([]*biz
 	args["limit"] = filter.PageSize
 	args["offset"] = (filter.Page - 1) * filter.PageSize
 
-	selectQuery := `SELECT * ` + baseQuery + ` ORDER BY created_at DESC LIMIT :limit OFFSET :offset`
+	selectQuery := `
+		SELECT id, title, slug, summary, resource_key, cover_image_key, raw_markdown, html_body, toc_json,
+		       status, visibility, author_id, category_id, version,
+		       view_count, like_count, comment_count,
+		       created_at, updated_at, published_at, deleted_at
+	` + baseQuery + ` ORDER BY created_at DESC LIMIT :limit OFFSET :offset`
 	selectSQL, selectArgs, err := sqlx.Named(selectQuery, args)
 	if err != nil {
 		return nil, 0, xerr.Wrap(err, xerr.CodeInternal, "构建 Select 语句失败")
@@ -212,7 +223,7 @@ type updatePostPO struct {
 	ID          int64        `db:"id"`
 	Title       string       `db:"title"`        // NOT NULL
 	RawMarkdown string       `db:"raw_markdown"` // NOT NULL
-	Status      int32        `db:"status"`
+	Status      string       `db:"status"`
 	OldVersion  int64        `db:"old_version"` // 乐观锁校验用的旧版本号
 	UpdatedAt   time.Time    `db:"updated_at"`
 	PublishedAt sql.NullTime `db:"published_at"` // NULLABLE
@@ -238,7 +249,7 @@ func (r *postRepo) Update(ctx context.Context, post *biz.Post) error {
 		ID:          post.ID,
 		Title:       post.Title,
 		RawMarkdown: post.RawMarkdown,
-		Status:      int32(post.Status),
+		Status:      protoStatusToDB(post.Status),
 		OldVersion:  post.Version,
 		UpdatedAt:   post.UpdatedAt,
 		PublishedAt: ptrTimeToNullTime(post.PublishedAt),
@@ -373,4 +384,56 @@ func (r *postRepo) ExistsBySlug(ctx context.Context, slug string) (bool, error) 
 	}
 
 	return exists, nil
+}
+
+func protoStatusToDB(status contentv1.PostStatus) string {
+	switch status {
+	case contentv1.PostStatus_POST_STATUS_PUBLISHED:
+		return "published"
+	case contentv1.PostStatus_POST_STATUS_ARCHIVED:
+		return "archived"
+	case contentv1.PostStatus_POST_STATUS_DRAFT:
+		fallthrough
+	default:
+		return "draft"
+	}
+}
+
+func dbStatusToProto(status string) contentv1.PostStatus {
+	switch status {
+	case "published":
+		return contentv1.PostStatus_POST_STATUS_PUBLISHED
+	case "archived":
+		return contentv1.PostStatus_POST_STATUS_ARCHIVED
+	case "draft":
+		fallthrough
+	default:
+		return contentv1.PostStatus_POST_STATUS_DRAFT
+	}
+}
+
+func protoVisibilityToDB(v contentv1.PostVisibility) string {
+	switch v {
+	case contentv1.PostVisibility_POST_VISIBILITY_HIDDEN:
+		return "hidden"
+	case contentv1.PostVisibility_POST_VISIBILITY_PASSWORD:
+		return "password"
+	case contentv1.PostVisibility_POST_VISIBILITY_PUBLIC:
+		fallthrough
+	default:
+		return "public"
+	}
+}
+
+func dbVisibilityToProto(v string) contentv1.PostVisibility {
+	switch v {
+	case "hidden":
+		return contentv1.PostVisibility_POST_VISIBILITY_HIDDEN
+	case "password":
+		return contentv1.PostVisibility_POST_VISIBILITY_PASSWORD
+	case "public":
+		fallthrough
+	default:
+		return contentv1.PostVisibility_POST_VISIBILITY_PUBLIC
+	}
 }

@@ -1,7 +1,42 @@
-# Tauri + Vue + TypeScript
+# HELM
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Helm 是 Bifrost 的 Tauri 管理端应用，采用 Vue + Rust Sidecar 模式。
 
-## Recommended IDE Setup
+## 核心能力
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- 登录与令牌管理（调用 Gjallar `/v1/auth/login`）
+- 图片处理（压缩、转 WebP、尺寸约束）
+- 上传流程（获取 ticket + 直传对象存储）
+- 管理端命令桥接（Tauri `invoke`）
+
+## 开发运行
+
+```bash
+cd frontend
+pnpm install
+pnpm --filter @bifrost/helm tauri dev
+```
+
+## 构建
+
+```bash
+cd frontend
+pnpm --filter @bifrost/helm tauri build
+```
+
+## 常用命令
+
+- `login_cmd(identifier, password)`
+- `upload_image_cmd(filePath)`
+- `is_authenticated()`
+- `logout_cmd()`
+
+## 配置
+
+- 后端默认网关：`http://localhost:8080`
+- 如需覆盖，请在 Tauri/Rust 侧通过环境变量配置 `GJALLAR_URL`
+
+## 关联文档
+
+- [IMPLEMENTATION](./IMPLEMENTATION.md)
+- [FRONTEND_API](../../../docs/FRONTEND_API.md)

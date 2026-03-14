@@ -1,6 +1,9 @@
 use crate::engine::SearchEngine;
 use common::config::NatsConfig;
 use common::nats::async_nats;
+use common::nats::events::{
+    CONSUMER_MIRROR_INDEXER, STREAM_CONTENT, SUBJECT_POST_WILDCARD,
+};
 use common::nats::{DeleteEvent, IndexEvent, NatsClient};
 use futures::StreamExt;
 use std::sync::Arc;
@@ -10,23 +13,52 @@ use tracing::{error, info, instrument, warn};
 pub struct IndexWorker {
     engine: Arc<SearchEngine>,
     nats: NatsClient,
+    stream_name: String,
+    consumer_name: String,
+    filter_subject: String,
 }
 
 impl IndexWorker {
     pub async fn new(config: &NatsConfig, engine: Arc<SearchEngine>) -> anyhow::Result<Self> {
         let nats = NatsClient::connect(config).await?;
-        Ok(Self { engine, nats })
+        let stream_name = config
+            .stream_name
+            .clone()
+            .unwrap_or_else(|| STREAM_CONTENT.to_string());
+        let consumer_name = config
+            .consumer_name
+            .clone()
+            .unwrap_or_else(|| CONSUMER_MIRROR_INDEXER.to_string());
+        let filter_subject = config
+            .filter_subject
+            .clone()
+            .unwrap_or_else(|| SUBJECT_POST_WILDCARD.to_string());
+        Ok(Self {
+            engine,
+            nats,
+            stream_name,
+            consumer_name,
+            filter_subject,
+        })
     }
 
     /// 启动后台消费任务
     pub async fn run(&self) -> anyhow::Result<()> {
         // 创建 Durable Pull Consumer
+        let stream_cfg = common::nats::StreamConfig::new(&self.stream_name, vec![self.filter_subject.clone()]);
+        let _ = self.nats.ensure_stream(&stream_cfg).await?;
+
         let consumer = self
             .nats
-            .create_pull_consumer("BIFROST_CONTENT", "mirror_indexer", "post.>")
+            .create_pull_consumer(&self.stream_name, &self.consumer_name, &self.filter_subject)
             .await?;
 
-        info!("IndexWorker started. Listening on 'post.>'");
+        info!(
+            stream = %self.stream_name,
+            consumer = %self.consumer_name,
+            subject = %self.filter_subject,
+            "IndexWorker started"
+        );
 
         let mut messages = consumer.messages().await?;
 
@@ -70,6 +102,17 @@ async fn handle_message(
     match action {
         "created" | "updated" | "published" => {
             let event: IndexEvent = NatsClient::deserialize(&msg.payload)?;
+
+            if event.title.is_empty() || event.slug.is_empty() {
+                warn!(
+                    post_id = event.id,
+                    "Skip event without required index fields (title/slug)"
+                );
+                msg.ack()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("ACK failed: {}", e))?;
+                return Ok(());
+            }
 
             // 使用 spawn_blocking 包装同步阻塞的索引操作
             let engine_clone = Arc::clone(&engine);

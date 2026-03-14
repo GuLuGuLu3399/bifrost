@@ -126,12 +126,20 @@ func main() {
 		logger.Fatal("Failed to init JWT manager", logger.Any("error", err))
 	}
 
-	// 3.6 NATS messenger
-	msgr, err := messenger.New(cfg.Messenger.Addr)
-	if err != nil {
-		logger.Fatal("Failed to connect to NATS", logger.Any("error", err))
+	// 3.6 NATS messenger（MVP 模式可关闭）
+	var msgr *messenger.Client
+	if cfg.Features.EnableMessenger {
+		msgr, err = messenger.New(cfg.Messenger.Addr)
+		if err != nil {
+			logger.Fatal("Failed to connect to NATS", logger.Any("error", err))
+		}
+		if err := msgr.EnsureDefaultContentTopology(); err != nil {
+			logger.Fatal("Failed to ensure NATS topology", logger.Any("error", err))
+		}
+		defer func() { _ = msgr.Close() }()
+	} else {
+		logger.Info("NATS messenger disabled by config")
 	}
-	defer func() { _ = msgr.Close() }()
 
 	// 4. 初始化 Data 层 (Repositories)
 	userRepo := data.NewUserRepo(dataData, snowflake)
@@ -188,11 +196,15 @@ func main() {
 	app.RegisterGRPC(g.GRPC())
 
 	// [新增] 注册 StorageService（MinIO 预签名上传）
-	storageSvc, err := service.NewStorageService(cfg)
-	if err != nil {
-		logger.Fatal("Failed to init storage service", logger.Any("error", err))
+	if cfg.Features.EnableStorage {
+		storageSvc, err := service.NewStorageService(cfg)
+		if err != nil {
+			logger.Fatal("Failed to init storage service", logger.Any("error", err))
+		}
+		nexusv1.RegisterStorageServiceServer(g.GRPC(), storageSvc)
+	} else {
+		logger.Info("storage service disabled by config")
 	}
-	nexusv1.RegisterStorageServiceServer(g.GRPC(), storageSvc)
 
 	logger.Info("Nexus gRPC server running", logger.String("addr", cfg.Server.GRPCAddr))
 	if err := g.Start(); err != nil {

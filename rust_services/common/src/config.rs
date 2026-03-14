@@ -9,11 +9,18 @@ use config as config_crate;
 #[serde(rename_all = "snake_case")]
 pub struct AppConfig {
     pub server: Option<ServerConfig>,
+    pub features: Option<FeaturesConfig>,
     pub log: Option<LogConfig>,
     pub redis: Option<RedisConfig>,
     pub database: Option<DatabaseConfig>,
     pub nats: Option<NatsConfig>,
     pub otel: Option<OtelConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub struct FeaturesConfig {
+    pub enable_nats_worker: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -47,6 +54,9 @@ pub struct DatabaseConfig {
 #[serde(rename_all = "snake_case")]
 pub struct NatsConfig {
     pub url: String,
+    pub filter_subject: Option<String>,
+    pub stream_name: Option<String>,
+    pub consumer_name: Option<String>,
 }
 
 // [新增] OpenTelemetry 配置

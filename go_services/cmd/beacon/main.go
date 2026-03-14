@@ -118,19 +118,26 @@ func main() {
 
 	app.RegisterGRPC(g.GRPC())
 
-	// NATS messenger + Consumer
-	msgr, err := messenger.New(cfg.Messenger.Addr)
-	if err != nil {
-		logger.Fatal("Failed to connect to NATS", logger.Any("error", err))
-	}
-	// 注册到 shutdown，统一关闭
-	sh.Register(msgr)
+	// NATS messenger + Consumer（MVP 模式可关闭）
+	if cfg.Features.EnableMessenger {
+		msgr, err := messenger.New(cfg.Messenger.Addr)
+		if err != nil {
+			logger.Fatal("Failed to connect to NATS", logger.Any("error", err))
+		}
+		if err := msgr.EnsureDefaultContentTopology(); err != nil {
+			logger.Fatal("Failed to ensure NATS topology", logger.Any("error", err))
+		}
+		// 注册到 shutdown，统一关闭
+		sh.Register(msgr)
 
-	consumer := data.NewConsumer(dd, msgr)
-	if err := consumer.Start(); err != nil {
-		logger.Fatal("Failed to start beacon consumer", logger.Any("error", err))
+		consumer := data.NewConsumer(dd, msgr)
+		if err := consumer.Start(); err != nil {
+			logger.Fatal("Failed to start beacon consumer", logger.Any("error", err))
+		}
+		sh.Register(consumer)
+	} else {
+		logger.Info("NATS consumer disabled by config")
 	}
-	sh.Register(consumer)
 
 	errCh := g.StartAsync()
 

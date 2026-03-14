@@ -10,6 +10,10 @@ import (
 type Config struct {
 	BaseConfig `mapstructure:",squash" yaml:",inline"`
 
+	Features struct {
+		EnableSearch bool `mapstructure:"enable_search" yaml:"enable_search"`
+	} `mapstructure:"features" yaml:"features"`
+
 	HTTP struct {
 		Addr         string        `mapstructure:"addr" yaml:"addr"`
 		ReadTimeout  time.Duration `mapstructure:"read_timeout" yaml:"read_timeout"`
@@ -17,6 +21,10 @@ type Config struct {
 		IdleTimeout  time.Duration `mapstructure:"idle_timeout" yaml:"idle_timeout"`
 		Timeout      time.Duration `mapstructure:"timeout" yaml:"timeout"`
 	} `mapstructure:"http" yaml:"http"`
+
+	CORS struct {
+		AllowedOrigins []string `mapstructure:"allowed_origins" yaml:"allowed_origins"`
+	} `mapstructure:"cors" yaml:"cors"`
 
 	RPC struct {
 		Nexus  grpc.ClientConfig `mapstructure:"nexus" yaml:"nexus"`
@@ -95,6 +103,8 @@ func LoadGjallarConfig() (*Config, error) {
 		"http.write_timeout":          "10s",
 		"http.idle_timeout":           "60s",
 		"http.timeout":                "5s",
+		"features.enable_search":      true,
+		"cors.allowed_origins":         []string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002"},
 		// Provide defaults so Viper binds keys and env can override
 		"rpc.nexus.addr":     "localhost:9001",
 		"rpc.nexus.timeout":  "5s",

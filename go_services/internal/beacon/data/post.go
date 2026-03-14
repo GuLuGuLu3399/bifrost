@@ -31,8 +31,8 @@ type postDetailPO struct {
 	LikeCount     int32          `db:"like_count"`
 	PublishedAt   sql.NullTime   `db:"published_at"`
 	UpdatedAt     time.Time      `db:"updated_at"`
-	AuthorID      int64          `db:"author_id"`
-	AuthorNick    string         `db:"author_nickname"`
+	AuthorID      sql.NullInt64  `db:"author_id"`
+	AuthorNick    sql.NullString `db:"author_nickname"`
 	AuthorAvatar  sql.NullString `db:"author_avatar_key"`
 	CategoryID    sql.NullInt64  `db:"category_id"`
 	CategoryName  sql.NullString `db:"category_name"`
@@ -74,8 +74,8 @@ func (r *postRepo) GetPost(ctx context.Context, slug string) (*beaconv1.PostDeta
 			LikeCount:     po.LikeCount,
 			UpdatedAt:     po.UpdatedAt.Unix(),
 			Author: &beaconv1.AuthorInfo{
-				Id:        po.AuthorID,
-				Nickname:  po.AuthorNick,
+				Id:        po.AuthorID.Int64,
+				Nickname:  po.AuthorNick.String,
 				AvatarKey: po.AuthorAvatar.String,
 			},
 		}
@@ -103,8 +103,8 @@ type postSummaryPO struct {
 	LikeCount     int32          `db:"like_count"`
 	CommentCount  int32          `db:"comment_count"`
 	PublishedAt   sql.NullTime   `db:"published_at"`
-	AuthorID      int64          `db:"author_id"`
-	AuthorNick    string         `db:"author_nickname"`
+	AuthorID      sql.NullInt64  `db:"author_id"`
+	AuthorNick    sql.NullString `db:"author_nickname"`
 	AuthorAvatar  sql.NullString `db:"author_avatar_key"`
 	CategoryID    sql.NullInt64  `db:"category_id"`
 	CategoryName  sql.NullString `db:"category_name"`
@@ -122,8 +122,8 @@ func (po *postSummaryPO) toProto() *beaconv1.PostSummary {
 		LikeCount:     po.LikeCount,
 		CommentCount:  po.CommentCount,
 		Author: &beaconv1.AuthorInfo{
-			Id:        po.AuthorID,
-			Nickname:  po.AuthorNick,
+			Id:        po.AuthorID.Int64,
+			Nickname:  po.AuthorNick.String,
 			AvatarKey: po.AuthorAvatar.String,
 		},
 	}
@@ -152,23 +152,23 @@ func (r *postRepo) ListPosts(ctx context.Context, filter *biz.PostListFilter) ([
 		filter.PageSize = 20
 	}
 
-	base := `FROM posts p WHERE p.status = 'published' AND p.deleted_at IS NULL`
+	where := `WHERE p.status = 'published' AND p.deleted_at IS NULL`
 	var args []any
 
 	idx := 1
 	if filter.CategoryID > 0 {
-		base += ` AND p.category_id = $` + fmt.Sprint(idx)
+		where += ` AND p.category_id = $` + fmt.Sprint(idx)
 		args = append(args, filter.CategoryID)
 		idx++
 	}
 	if filter.AuthorID > 0 {
-		base += ` AND p.author_id = $` + fmt.Sprint(idx)
+		where += ` AND p.author_id = $` + fmt.Sprint(idx)
 		args = append(args, filter.AuthorID)
 		idx++
 	}
 
 	// 1) count
-	countSQL := `SELECT count(*) ` + base
+	countSQL := `SELECT count(*) FROM posts p ` + where
 	var total int64
 	if err := r.data.DB().GetContext(ctx, &total, countSQL, args...); err != nil {
 		return nil, 0, err
@@ -188,12 +188,13 @@ func (r *postRepo) ListPosts(ctx context.Context, filter *biz.PostListFilter) ([
 			p.view_count, p.like_count, p.comment_count, p.published_at,
 			u.id AS author_id, u.nickname AS author_nickname, u.avatar_key AS author_avatar_key,
 			c.id AS category_id, c.name AS category_name, c.slug AS category_slug
-		%s
+		FROM posts p
 		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN categories c ON p.category_id = c.id
+		%s
 		ORDER BY p.published_at DESC NULLS LAST, p.id DESC
 		LIMIT $%d OFFSET $%d
-	`, base, idx, idx+1)
+	`, where, idx, idx+1)
 
 	var pos []postSummaryPO
 	if err := r.data.DB().SelectContext(ctx, &pos, listSQL, args2...); err != nil {

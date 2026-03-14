@@ -1,0 +1,1275 @@
+openapi: 3.0.3
+info:
+  title: Bifrost HTTP API (Testing Delivery)
+  version: v1
+  license:
+    name: MIT
+  description: |
+    面向测试团队的 OpenAPI 风格接口文档。
+    范围为当前 Gjallar 网关实际暴露的 HTTP 路由（/v1/*）。
+
+    说明：
+    - 大部分路由来自 gRPC-Gateway（Nexus + Beacon）。
+    - /v1/search 与 /v1/search/suggest 为 Gjallar 自定义 Handler。
+    - 认证采用 Authorization: Bearer <access_token>。
+
+servers:
+  - url: http://localhost:8080
+    description: Local gateway
+
+tags:
+  - name: Auth
+  - name: User
+  - name: PublicPost
+  - name: PublicMeta
+  - name: PublicComment
+  - name: Search
+  - name: AdminPost
+  - name: AdminMeta
+  - name: AdminComment
+  - name: Storage
+
+security:
+  - BearerAuth: []
+
+paths:
+  /v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: 注册
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: 登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              by_email:
+                value:
+                  identifier: alice@example.com
+                  password: your_password
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/password:
+    post:
+      tags: [User]
+      summary: 修改密码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/profile:
+    get:
+      tags: [User]
+      summary: 获取当前用户资料
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: 兼容字段，通常由后端根据 token 识别当前用户
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProfileResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [User]
+      summary: 更新资料
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/posts:
+    get:
+      tags: [PublicPost]
+      summary: 获取文章列表（公开）
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PageSizeCursor"
+        - $ref: "#/components/parameters/PageToken"
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: tag_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: author_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPostsResponse"
+
+  /v1/posts/{slug}:
+    get:
+      tags: [PublicPost]
+      summary: 获取文章详情（公开）
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPostResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/posts:batch:
+    post:
+      tags: [PublicPost]
+      summary: 批量获取文章摘要（公开）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchGetPostsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchGetPostsResponse"
+
+  /v1/posts/{post_id}/comments:
+    get:
+      tags: [PublicComment]
+      summary: 获取评论列表（公开）
+      security: []
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - $ref: "#/components/parameters/PageSizeCursor"
+        - $ref: "#/components/parameters/PageToken"
+        - name: root_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCommentsResponse"
+
+    post:
+      tags: [AdminComment]
+      summary: 发表评论（需登录）
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCommentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/comments/{comment_id}:
+    delete:
+      tags: [AdminComment]
+      summary: 删除评论（需登录）
+      parameters:
+        - name: comment_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/users/{user_id}:
+    get:
+      tags: [User]
+      summary: 获取用户公开信息（公开）
+      security: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUserResponse"
+
+  /v1/categories:
+    get:
+      tags: [PublicMeta]
+      summary: 获取分类列表
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCategoriesResponse"
+
+    post:
+      tags: [AdminMeta]
+      summary: 创建分类（需登录）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCategoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/categories/{category_id}:
+    put:
+      tags: [AdminMeta]
+      summary: 更新分类（需登录）
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    delete:
+      tags: [AdminMeta]
+      summary: 删除分类（需登录）
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/tags:
+    get:
+      tags: [PublicMeta]
+      summary: 获取标签列表
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListTagsResponse"
+
+  /v1/tags/{tag_id}:
+    delete:
+      tags: [AdminMeta]
+      summary: 删除标签（需登录）
+      parameters:
+        - name: tag_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/drafts:
+    get:
+      tags: [AdminPost]
+      summary: 管理端文章列表（需登录）
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 20
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/PostStatus"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDraftsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/admin/posts:
+    post:
+      tags: [AdminPost]
+      summary: 创建文章（需登录）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatePostResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/admin/posts/{post_id}:
+    get:
+      tags: [AdminPost]
+      summary: 管理端获取文章详情（需登录）
+      parameters:
+        - $ref: "#/components/parameters/PostIdPath"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminGetPostResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    put:
+      tags: [AdminPost]
+      summary: 更新文章（需登录）
+      parameters:
+        - $ref: "#/components/parameters/PostIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatePostResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    delete:
+      tags: [AdminPost]
+      summary: 删除文章（需登录）
+      parameters:
+        - $ref: "#/components/parameters/PostIdPath"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/admin/posts/{post_id}/source:
+    get:
+      tags: [AdminPost]
+      summary: 获取文章源码（需登录）
+      parameters:
+        - $ref: "#/components/parameters/PostIdPath"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FetchSourceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/search:
+    get:
+      tags: [Search]
+      summary: 搜索（公开）
+      security: []
+      description: |
+        Gjallar 自定义 Handler。
+        当前支持 query/q、page、page_size、category_id、tag_id、author_id。
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 20
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: tag_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: author_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "503":
+          description: mirror 未启用或不可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/search/suggest:
+    get:
+      tags: [Search]
+      summary: 搜索建议（公开）
+      security: []
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 5
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestResponse"
+        "503":
+          description: mirror 未启用或不可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/storage/upload_ticket:
+    post:
+      tags: [Storage]
+      summary: 获取上传凭证（需登录）
+      description: |
+        来自 Nexus StorageService 的 proto 定义。
+        当前网关实现未注册该服务，调用通常返回 404（已知限制）。
+      x-known-issues:
+        - gateway_route_not_registered
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetUploadTicketRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUploadTicketResponse"
+        "404":
+          description: 当前网关未注册 StorageService
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PostIdPath:
+      name: post_id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    PageSizeCursor:
+      name: page.page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        format: int32
+        default: 20
+      description: Cursor 分页 page_size
+    PageToken:
+      name: page.page_token
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Cursor 分页 token
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: 未认证或 token 无效
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: 资源冲突（如用户名/邮箱重复）
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      additionalProperties: true
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        nickname:
+          type: string
+
+    RegisterResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+
+    LoginRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          description: 用户名或邮箱
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+
+    ChangePasswordRequest:
+      type: object
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+
+    GetProfileResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        nickname:
+          type: string
+        bio:
+          type: string
+        avatar_key:
+          type: string
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+        bio:
+          type: string
+        avatar_key:
+          type: string
+        theme:
+          type: string
+        language:
+          type: string
+
+    AuthorInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nickname:
+          type: string
+        avatar_key:
+          type: string
+
+    CategoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        post_count:
+          type: integer
+          format: int32
+
+    TagItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        post_count:
+          type: integer
+          format: int32
+
+    PostSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        cover_image_key:
+          type: string
+        view_count:
+          type: integer
+          format: int32
+        like_count:
+          type: integer
+          format: int32
+        comment_count:
+          type: integer
+          format: int32
+        published_at:
+          type: integer
+          format: int64
+        author:
+          $ref: "#/components/schemas/AuthorInfo"
+        category:
+          $ref: "#/components/schemas/CategoryItem"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagItem"
+
+    PostDetail:
+      allOf:
+        - $ref: "#/components/schemas/PostSummary"
+        - type: object
+          properties:
+            html_body:
+              type: string
+            toc_json:
+              type: string
+            updated_at:
+              type: integer
+              format: int64
+            prev_post_id:
+              type: integer
+              format: int64
+            prev_post_title:
+              type: string
+            prev_post_slug:
+              type: string
+            next_post_id:
+              type: integer
+              format: int64
+            next_post_title:
+              type: string
+            next_post_slug:
+              type: string
+
+    GetPostResponse:
+      type: object
+      properties:
+        post:
+          $ref: "#/components/schemas/PostDetail"
+
+    ListPostsResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostSummary"
+        page:
+          $ref: "#/components/schemas/PageResponse"
+
+    BatchGetPostsRequest:
+      type: object
+      required: [post_ids]
+      properties:
+        post_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    BatchGetPostsResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostSummary"
+
+    CommentItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        content:
+          type: string
+        created_at:
+          type: integer
+          format: int64
+        user:
+          $ref: "#/components/schemas/AuthorInfo"
+        parent_id:
+          type: integer
+          format: int64
+
+    ListCommentsResponse:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommentItem"
+        page:
+          $ref: "#/components/schemas/PageResponse"
+
+    CreateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        post_id:
+          type: integer
+          format: int64
+          description: 路径参数已提供，此字段可忽略
+        parent_id:
+          type: integer
+          format: int64
+          default: 0
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+
+    CreateCommentResponse:
+      type: object
+      properties:
+        comment_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+
+    GetUserResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            username:
+              type: string
+            nickname:
+              type: string
+            avatar_key:
+              type: string
+            bio:
+              type: string
+            post_count:
+              type: integer
+              format: int32
+
+    ListCategoriesResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryItem"
+
+    ListTagsResponse:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagItem"
+
+    CreateCategoryRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+
+    CreateCategoryResponse:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          format: int64
+
+    UpdateCategoryRequest:
+      type: object
+      required: [category_id]
+      properties:
+        category_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+
+    PostStatus:
+      type: integer
+      enum: [0, 1, 2, 3]
+      description: 0=UNSPECIFIED, 1=DRAFT, 2=PUBLISHED, 3=ARCHIVED
+
+    CreatePostRequest:
+      type: object
+      required: [title, slug, raw_markdown]
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        raw_markdown:
+          type: string
+        category_id:
+          type: integer
+          format: int64
+        tag_names:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        cover_image_key:
+          type: string
+        resource_key:
+          type: string
+
+    CreatePostResponse:
+      type: object
+      properties:
+        post_id:
+          type: integer
+          format: int64
+
+    UpdatePostRequest:
+      type: object
+      required: [post_id]
+      properties:
+        post_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        raw_markdown:
+          type: string
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        cover_image_key:
+          type: string
+        resource_key:
+          type: string
+        category_id:
+          type: integer
+          format: int64
+        tag_names:
+          type: array
+          items:
+            type: string
+
+    UpdatePostResponse:
+      type: object
+      properties:
+        version:
+          type: integer
+          format: int64
+
+    AdminGetPostResponse:
+      type: object
+      properties:
+        post:
+          type: object
+          additionalProperties: true
+          description: 透传 content.v1.Post
+
+    FetchSourceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        raw_markdown:
+          type: string
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        version:
+          type: integer
+          format: int64
+
+    ListDraftsResponse:
+      type: object
+      properties:
+        posts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: 透传 content.v1.Post
+        total_count:
+          type: integer
+          format: int32
+
+    SearchHit:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        score:
+          type: number
+          format: float
+        title:
+          type: string
+        slug:
+          type: string
+        highlight_title:
+          type: string
+        highlight_content:
+          type: string
+        published_at:
+          type: integer
+          format: int64
+
+    SearchResponse:
+      type: object
+      properties:
+        hits:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHit"
+        total_hits:
+          type: integer
+          format: int32
+        took_ms:
+          type: number
+          format: float
+        facets:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: integer
+              format: int64
+
+    SuggestResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            type: string
+        took_ms:
+          type: number
+          format: float
+
+    GetUploadTicketRequest:
+      type: object
+      required: [filename, usage]
+      properties:
+        filename:
+          type: string
+        usage:
+          type: string
+          enum: [avatar, cover, post_image]
+
+    GetUploadTicketResponse:
+      type: object
+      properties:
+        upload_url:
+          type: string
+        object_key:
+          type: string
+
+    PageResponse:
+      type: object
+      properties:
+        next_page_token:
+          type: string
+        total_count:
+          type: integer
+          format: int32

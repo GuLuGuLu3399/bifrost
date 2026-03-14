@@ -5,8 +5,12 @@ package messenger
 
 // PostEventPayload 文章事件载荷
 type PostEventPayload struct {
-	ID   int64  `json:"id"`
-	Slug string `json:"slug"`
+	ID          int64  `json:"id"`
+	Slug        string `json:"slug"`
+	Title       string `json:"title,omitempty"`
+	Summary     string `json:"summary,omitempty"`
+	Status      int32  `json:"status,omitempty"`
+	PublishedAt int64  `json:"published_at,omitempty"`
 }
 
 // CategoryEventPayload 分类事件载荷
@@ -40,10 +44,16 @@ const (
 	SubjectPostCreated    = "content.post.created"
 	SubjectPostUpdated    = "content.post.updated"
 	SubjectPostDeleted    = "content.post.deleted"
+	SubjectPostWildcard   = "content.post.>"
+	SubjectContentAll     = "content.>"
 	SubjectCategoryUpdate = "content.category.updated"
 	SubjectTagUpdate      = "content.tag.updated"
 	SubjectCommentCreated = "content.comment.created"
 	SubjectInteraction    = "content.interaction.updated"
+
+	// NATS Stream / Consumer 常量
+	StreamContent        = "BIFROST_CONTENT"
+	ConsumerMirrorIndexer = "mirror_indexer"
 
 	// Queue Group 常量
 	GroupBeacon = "beacon_service"

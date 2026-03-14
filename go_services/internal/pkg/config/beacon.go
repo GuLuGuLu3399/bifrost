@@ -9,6 +9,10 @@ import (
 type BeaconConfig struct {
 	BaseConfig `mapstructure:",squash" yaml:",inline"`
 
+	Features struct {
+		EnableMessenger bool `mapstructure:"enable_messenger" yaml:"enable_messenger"`
+	} `mapstructure:"features" yaml:"features"`
+
 	Server struct {
 		GRPCAddr                string        `mapstructure:"grpc_addr" yaml:"grpc_addr"`
 		GracefulShutdownTimeout time.Duration `mapstructure:"graceful_shutdown_timeout" yaml:"graceful_shutdown_timeout"`
@@ -66,6 +70,7 @@ func LoadBeacon(path string) (*BeaconConfig, error) {
 		"app.name":                         "bifrost-beacon",
 		"app.env":                          "dev",
 		"app.version":                      "1.0.0",
+		"features.enable_messenger":        true,
 		"logger.level":                     "info",
 		"logger.format":                    "json",
 		"observability.otlp_endpoint":      "localhost:4317",

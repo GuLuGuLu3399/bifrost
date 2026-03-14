@@ -65,6 +65,35 @@ impl NatsClient {
             .with_context(|| format!("Failed to get stream '{}'. Make sure it exists.", name))
     }
 
+    /// 校验 Stream 存在，不存在时自动创建。
+    pub async fn ensure_stream(&self, config: &StreamConfig) -> Result<Stream> {
+        match self.jetstream.get_stream(&config.name).await {
+            Ok(stream) => {
+                info!(stream = %config.name, "Using existing stream");
+                Ok(stream)
+            }
+            Err(_) => {
+                let stream = self
+                    .jetstream
+                    .create_stream(jetstream::stream::Config {
+                        name: config.name.clone(),
+                        subjects: config.subjects.clone(),
+                        ..Default::default()
+                    })
+                    .await
+                    .with_context(|| format!("Failed to create stream '{}'", config.name))?;
+
+                info!(
+                    stream = %config.name,
+                    subjects = ?config.subjects,
+                    "Created stream"
+                );
+
+                Ok(stream)
+            }
+        }
+    }
+
     /// 创建 Durable Pull Consumer
     pub async fn create_pull_consumer(
         &self,

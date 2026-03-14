@@ -13,7 +13,10 @@ import (
 	"github.com/gulugulu3399/bifrost/internal/pkg/xerr"
 )
 
-const postWriteTimeout = 15 * time.Second
+const (
+	postWriteTimeout = 15 * time.Second
+	postReadTimeout  = 5 * time.Second
+)
 
 // PostService 文章 gRPC 服务
 type PostService struct {
@@ -25,11 +28,6 @@ type PostService struct {
 // NewPostService 创建文章服务
 func NewPostService(postUC *biz.PostUseCase, msgr *messenger.Client) *PostService {
 	return &PostService{postUC: postUC, msgr: msgr}
-}
-
-type postEventPayload struct {
-	ID   int64  `json:"id"`
-	Slug string `json:"slug"`
 }
 
 // CreatePost 创建文章
@@ -76,10 +74,20 @@ func (s *PostService) CreatePost(ctx context.Context, req *nexusv1.CreatePostReq
 
 	// fire-and-forget event
 	if s.msgr != nil {
-		id := output.PostID
-		slug := input.Slug
+		publishedAt := int64(0)
+		if input.Status == contentv1.PostStatus_POST_STATUS_PUBLISHED {
+			publishedAt = time.Now().Unix()
+		}
+		event := messenger.PostEventPayload{
+			ID:          output.PostID,
+			Slug:        input.Slug,
+			Title:       input.Title,
+			Summary:     input.RawMarkdown,
+			Status:      int32(input.Status),
+			PublishedAt: publishedAt,
+		}
 		go func() {
-			if err := s.msgr.Publish("content.post.created", postEventPayload{ID: id, Slug: slug}); err != nil {
+			if err := s.msgr.Publish(messenger.SubjectPostCreated, event); err != nil {
 				logger.WithContext(ctx).Warn("publish post.created failed", logger.Err(err))
 			}
 		}()
@@ -124,9 +132,25 @@ func (s *PostService) UpdatePost(ctx context.Context, req *nexusv1.UpdatePostReq
 	}
 
 	if s.msgr != nil {
-		id := input.ID
+		latest, gerr := s.postUC.GetPost(ctx, input.ID)
+		if gerr != nil {
+			logger.WithContext(ctx).Warn("get post after update failed, publish minimal event", logger.Err(gerr))
+		}
+
+		event := messenger.PostEventPayload{
+			ID:      input.ID,
+			Title:   input.Title,
+			Summary: input.RawMarkdown,
+			Status:  int32(input.Status),
+		}
+		if latest != nil {
+			event.Slug = latest.Slug
+			if latest.PublishedAt != nil {
+				event.PublishedAt = latest.PublishedAt.Unix()
+			}
+		}
 		go func() {
-			if err := s.msgr.Publish("content.post.updated", postEventPayload{ID: id, Slug: ""}); err != nil {
+			if err := s.msgr.Publish(messenger.SubjectPostUpdated, event); err != nil {
 				logger.WithContext(ctx).Warn("publish post.updated failed", logger.Err(err))
 			}
 		}()
@@ -152,9 +176,9 @@ func (s *PostService) DeletePost(ctx context.Context, req *nexusv1.DeletePostReq
 	}
 
 	if s.msgr != nil {
-		id := req.GetPostId()
+		event := messenger.PostEventPayload{ID: req.GetPostId()}
 		go func() {
-			if err := s.msgr.Publish("content.post.deleted", postEventPayload{ID: id, Slug: ""}); err != nil {
+			if err := s.msgr.Publish(messenger.SubjectPostDeleted, event); err != nil {
 				logger.WithContext(ctx).Warn("publish post.deleted failed", logger.Err(err))
 			}
 		}()
@@ -167,6 +191,9 @@ func (s *PostService) DeletePost(ctx context.Context, req *nexusv1.DeletePostReq
 
 // ListPosts 列出文章 (简要信息)
 func (s *PostService) ListPosts(ctx context.Context, req *nexusv1.ListPostsRequest) (*nexusv1.ListPostsResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, postReadTimeout)
+	defer cancel()
+
 	out, err := s.postUC.ListPosts(ctx, &biz.ListPostsInput{
 		Page:       int(req.GetPage()),
 		PageSize:   int(req.GetPageSize()),
@@ -197,8 +224,70 @@ func (s *PostService) ListPosts(ctx context.Context, req *nexusv1.ListPostsReque
 	}, nil
 }
 
+// ListDrafts 列出管理端草稿/文章列表（兼容旧 ListPosts 请求语义）
+func (s *PostService) ListDrafts(ctx context.Context, req *nexusv1.ListDraftsRequest) (*nexusv1.ListDraftsResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, postReadTimeout)
+	defer cancel()
+
+	out, err := s.postUC.ListPosts(ctx, &biz.ListPostsInput{
+		Page:       int(req.GetPage()),
+		PageSize:   int(req.GetPageSize()),
+		Keyword:    req.GetKeyword(),
+		CategoryID: req.GetCategoryId(),
+		Status:     req.GetStatus(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	protoPosts := make([]*contentv1.Post, 0, len(out.Posts))
+	for _, post := range out.Posts {
+		protoPosts = append(protoPosts, &contentv1.Post{
+			Id:            post.ID,
+			Title:         post.Title,
+			Slug:          post.Slug,
+			Summary:       post.Summary,
+			RawMarkdown:   post.RawMarkdown,
+			Status:        post.Status,
+			CoverImageKey: post.CoverImageKey,
+			ResourceKey:   post.ResourceKey,
+		})
+	}
+
+	return &nexusv1.ListDraftsResponse{
+		Posts:      protoPosts,
+		TotalCount: out.TotalCount,
+	}, nil
+}
+
+// FetchSource 获取文章源码（编辑器回显用）
+func (s *PostService) FetchSource(ctx context.Context, req *nexusv1.FetchSourceRequest) (*nexusv1.FetchSourceResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, postReadTimeout)
+	defer cancel()
+
+	if req.GetPostId() == 0 {
+		return nil, xerr.New(xerr.CodeBadRequest, "post_id is required")
+	}
+
+	post, err := s.postUC.GetPost(ctx, req.GetPostId())
+	if err != nil {
+		return nil, err
+	}
+
+	return &nexusv1.FetchSourceResponse{
+		Id:          post.ID,
+		Title:       post.Title,
+		RawMarkdown: post.RawMarkdown,
+		Status:      post.Status,
+		Version:     post.Version,
+	}, nil
+}
+
 // GetPost 获取文章 (回显用)
 func (s *PostService) GetPost(ctx context.Context, req *nexusv1.GetPostRequest) (*nexusv1.GetPostResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, postReadTimeout)
+	defer cancel()
+
 	post, err := s.postUC.GetPost(ctx, req.GetPostId())
 	if err != nil {
 		return nil, err

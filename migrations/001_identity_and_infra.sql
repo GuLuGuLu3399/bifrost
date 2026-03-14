@@ -55,7 +55,7 @@ CREATE TABLE users (
 
     -- [业务约束]
     CONSTRAINT check_email_fmt CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
-    CONSTRAINT check_username_len CHECK (char_length(username) >= 3),
+    CONSTRAINT check_username_len CHECK (char_length(username) >= 2),
     CONSTRAINT check_auth_logic CHECK (
         (provider = 'local' AND password_hash IS NOT NULL) OR
         (provider != 'local' AND provider_id IS NOT NULL)
@@ -76,7 +76,7 @@ VALUES (
     2,
     'superadmin',
     'superadmin@bifrost.local',
-    '$2a$10$MWMU/HAKH1acO5vnO5z3mer2CNuHQ9Gvnc/TvhPW8w2prSsBOahCC', -- bcrypt: SuperAdmin@2025!
+    '$2a$10$MWMU/HAKH1acO5vnO5z3mer2CNuHQ9Gvnc/TvhPW8w2prSsBOahCC', -- bcrypt hash for bootstrap admin; rotate password immediately after init
     'Super Admin',
     TRUE,
     1,

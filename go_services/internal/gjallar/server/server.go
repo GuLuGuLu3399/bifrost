@@ -65,15 +65,18 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 	}
 	beaconConn = bConn
 
-	mConn, err := pkggrpc.NewClient(cfg.RPC.Mirror, l)
-	if err != nil {
-		cleanupErr = err
-		return nil, err
+	var mirrorClient *grpcClient.MirrorClient
+	if cfg.Features.EnableSearch {
+		mConn, err := pkggrpc.NewClient(cfg.RPC.Mirror, l)
+		if err != nil {
+			logger.Global().Warn("mirror unavailable, search endpoints will return 503", logger.Err(err))
+		} else {
+			mirrorConn = mConn
+			mirrorClient = grpcClient.NewMirrorClient(searchv1.NewMirrorServiceClient(mirrorConn))
+		}
+	} else {
+		logger.Global().Info("search feature disabled by config")
 	}
-	mirrorConn = mConn
-
-	// 创建 Mirror 客户端
-	mirrorClient := grpcClient.NewMirrorClient(searchv1.NewMirrorServiceClient(mirrorConn))
 
 	// 2. 初始化 Router (Gateway)
 	mux, err := router.New(ctx, nexusConn, beaconConn, mirrorClient)
@@ -92,9 +95,9 @@ func New(cfg *config.Config) (*GjallarServer, error) {
 	// 应用 pkg 提供的通用基础设施中间件
 	handler = pkghttp.Chain(
 		middleware.Tracing("bifrost-gjallar"), // ✅ Phase 1: 生成 Root Span (必须在最外层)
-		pkghttp.CORS(                           // ✅ 配置 CORS：仅允许前端开发服务器
-			[]string{"http://localhost:3000"},
-			[]string{"GET", "OPTIONS", "POST"},
+		pkghttp.CORS(                           // ✅ 配置 CORS：来源列表从配置文件读取
+			cfg.CORS.AllowedOrigins,
+			[]string{"GET", "OPTIONS", "POST", "PUT", "DELETE", "PATCH"},
 			[]string{"Content-Type", "Authorization"},
 		),
 		pkghttp.RequestID(),                   // 生成 RequestID 并注入 Context

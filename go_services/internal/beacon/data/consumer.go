@@ -39,7 +39,7 @@ func NewConsumer(data *Data, msgr *messenger.Client) *Consumer {
 // 2. Queue Group "beacon_service" 实现负载均衡
 // 3. 处理失败只记日志，不阻塞或返回错误
 func (c *Consumer) Start() error {
-	sub, err := c.msgr.Subscribe("content.>", messenger.GroupBeacon, func(subject string, data []byte) {
+	sub, err := c.msgr.Subscribe(messenger.SubjectContentAll, messenger.GroupBeacon, func(subject string, data []byte) {
 		// 路由事件到对应的处理器
 		switch subject {
 		case messenger.SubjectPostCreated, messenger.SubjectPostUpdated, messenger.SubjectPostDeleted:
