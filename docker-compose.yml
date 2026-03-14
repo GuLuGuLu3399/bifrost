@@ -35,6 +35,9 @@ services:
       retries: 5
     restart: unless-stopped
 
+    ports:
+      - "5432:5432"
+
   # 3. Redis
   redis:
     image: redis:${REDIS_VERSION}

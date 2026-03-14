@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"time"
+	"regexp"
 
 	"github.com/gulugulu3399/bifrost/internal/pkg/security"
 	"github.com/gulugulu3399/bifrost/internal/pkg/xerr"
@@ -41,6 +42,16 @@ func (uc *UserUseCase) Register(ctx context.Context, input *RegisterInput) (int6
 	// 使用我们在 pkg/security 中定义的规则
 	if err := security.ValidatePassword(input.Password, nil); err != nil {
 		return 0, xerr.New(xerr.CodeValidation, err.Error())
+	}
+
+	// 1.2 [Validation] 校验用户名长度与邮箱格式，尽量在进入事务前失败
+	if len(strings.TrimSpace(input.Username)) < 3 {
+		return 0, xerr.New(xerr.CodeValidation, "用户名长度至少 3")
+	}
+	// 与 DB 约束 check_email_fmt 保持一致的基本格式校验
+	var emailRegex = regexp.MustCompile(`^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$`)
+	if !emailRegex.MatchString(strings.TrimSpace(input.Email)) {
+		return 0, xerr.New(xerr.CodeValidation, "邮箱格式不合法")
 	}
 
 	// 2. [Transaction] 开启事务：创建用户

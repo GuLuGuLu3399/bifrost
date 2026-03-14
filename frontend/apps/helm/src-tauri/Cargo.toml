@@ -20,6 +20,19 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# HTTP Client
+reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"] }
+
+# Image Processing
+image = { version = "0.25", features = ["webp", "jpeg", "png"] }
+
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+
+# Error Handling
+anyhow = "1"
 

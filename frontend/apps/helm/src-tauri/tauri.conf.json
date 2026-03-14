@@ -12,9 +12,16 @@
   "app": {
     "windows": [
       {
-        "title": "helm",
-        "width": 800,
-        "height": 600
+        "title": "Helm",
+        "label": "main",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "center": true
       }
     ],
     "security": {

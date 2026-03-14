@@ -1,6 +1,11 @@
 {
-  "extends": "../../tsconfig.base.json",
   // https://nuxt.com/docs/guide/concepts/typescript
-  "files": [],
-  "include": ["tailwind.config.ts", "types/**/*.d.ts"]
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["@types/node", "@vueuse/core"],
+    // Note: "preserve" is valid in TypeScript 5.4+, but some VS Code extensions
+    // use outdated schemas. Setting to ESNext to suppress false warnings.
+    "module": "ESNext"
+  }
 }

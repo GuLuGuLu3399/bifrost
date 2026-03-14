@@ -68,16 +68,16 @@ CREATE UNIQUE INDEX idx_users_username_active ON users(username) WHERE deleted_a
 CREATE UNIQUE INDEX idx_users_email_active ON users(email) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_users_oauth_active ON users(provider, provider_id) WHERE deleted_at IS NULL;
 
--- 5. 初始管理员种子数据 (Seed)
--- 注意: 这里手动指定了一个 ID (1) 作为初始管理员
--- 生产环境建议通过 CLI 工具初始化，以生成真实的 Snowflake ID
+-- 5. 初始超级管理员种子数据 (Seed)
+-- 说明: 默认创建一个超级管理员 superadmin (ID=2)，便于开发测试
+-- 生产环境建议通过 CLI 工具或运维脚本初始化，设置真实的安全口令
 INSERT INTO users (id, username, email, password_hash, nickname, is_admin, version, meta)
 VALUES (
-    1,
-    'admin',
-    'admin@bifrost.com',
-    '$2a$10$YourHashedPasswordHere...', -- 请替换为真实的 Bcrypt Hash
-    'Bifrost Commander',
+    2,
+    'superadmin',
+    'superadmin@bifrost.local',
+    '$2a$10$MWMU/HAKH1acO5vnO5z3mer2CNuHQ9Gvnc/TvhPW8w2prSsBOahCC', -- bcrypt: SuperAdmin@2025!
+    'Super Admin',
     TRUE,
     1,
     '{"theme": "dark"}'

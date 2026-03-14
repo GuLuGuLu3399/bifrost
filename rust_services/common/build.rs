@@ -44,7 +44,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ""
     };
 
-    let mut include_paths = vec![api_parent_str, api_root];
+    // Always include common/proto so vendored google/api/*.proto can satisfy imports.
+    let mut include_paths = vec![api_parent_str, api_root, "proto"];
     if !third_party_root.is_empty() {
         include_paths.push(third_party_root);
     }

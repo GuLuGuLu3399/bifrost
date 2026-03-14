@@ -152,11 +152,31 @@ func (r *userRepo) Create(ctx context.Context, user *biz.User) (int64, error) {
 	db := r.data.DB(ctx)
 	_, err = sqlx.NamedExecContext(ctx, db, query, po)
 	if err != nil {
-		// [改进] 捕获唯一索引冲突
+		// [改进] 捕获并映射常见的数据库错误到更明确的业务错误
 		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return 0, xerr.New(xerr.CodeConflict, "用户名或邮箱已存在")
+		if errors.As(err, &pqErr) {
+			switch string(pqErr.Code) {
+			case "23505":
+				// 唯一索引冲突
+				return 0, xerr.New(xerr.CodeConflict, "用户名或邮箱已存在")
+			case "23514":
+				// CHECK 约束失败，根据约束名返回更清晰的提示
+				switch pqErr.Constraint {
+				case "check_email_fmt":
+					return 0, xerr.New(xerr.CodeValidation, "邮箱格式不合法")
+				case "check_username_len":
+					return 0, xerr.New(xerr.CodeValidation, "用户名长度至少 3")
+				case "check_auth_logic":
+					return 0, xerr.New(xerr.CodeValidation, "本地用户必须设置密码")
+				default:
+					return 0, xerr.New(xerr.CodeValidation, "数据校验失败")
+				}
+			case "23502":
+				// NOT NULL 违例
+				return 0, xerr.New(xerr.CodeValidation, "缺少必填字段")
+			}
 		}
+		// 其他未识别错误保留原始信息但不暴露细节
 		return 0, xerr.Wrap(err, xerr.CodeInternal, "创建用户失败")
 	}
 

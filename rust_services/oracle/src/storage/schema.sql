@@ -1,10 +1,13 @@
 -- rust_services/oracle/src/storage/schema.sql
 -- NOTE: Optimized for DuckDB compatibility (single-file analytics database)
 
+-- 创建 ID 序列（用于自增主键）
+CREATE SEQUENCE IF NOT EXISTS raw_events_id_seq START 1;
+
 -- 原始事件表 (Append-Only)
 CREATE TABLE IF NOT EXISTS raw_events (
-    -- 主键：使用 BIGINT，DuckDB 中通过应用层生成（无自增支持）
-    id BIGINT PRIMARY KEY,
+    -- 主键：使用 BIGINT，通过行号自动生成
+    id BIGINT PRIMARY KEY DEFAULT nextval('raw_events_id_seq'),
     
     -- 核心字段
     event_type VARCHAR(50) NOT NULL,           -- 事件类型，如 'post_view', 'post_like'
