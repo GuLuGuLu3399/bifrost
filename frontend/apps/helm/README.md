@@ -1,16 +1,24 @@
-# HELM
+﻿# HELM
 
-Helm 是 Bifrost 的 Tauri 管理端应用，采用 Vue + Rust Sidecar 模式。
+> Bifrost Tauri 管理端（Vue + Rust Sidecar）。
+
+## 目录
+
+- [核心能力](#核心能力)
+- [开发运行](#开发运行)
+- [构建](#构建)
+- [常用命令](#常用命令)
+- [配置](#配置)
 
 ## 核心能力
 
-- 登录与令牌管理（调用 Gjallar `/v1/auth/login`）
-- 图片处理（压缩、转 WebP、尺寸约束）
-- 上传流程（获取 ticket + 直传对象存储）
-- 管理端命令桥接（Tauri `invoke`）
-- 路由守卫与会话检查（未登录自动跳转 `/auth`）
-- 业务页面：`/posts`、`/taxonomy`、`/comments`、`/profile`
-- 独立实验页：`/lab/api`（覆盖主要网关接口的联调调用）
+- 登录与令牌管理（`/v1/auth/login`）
+- 图片处理（压缩、WebP 转换、尺寸限制）
+- 上传流程（ticket + 对象存储直传）
+- Tauri 命令桥接（`invoke`）
+- 路由守卫与会话检查（未登录跳转 `/auth`）
+- 管理页面：`/posts`、`/taxonomy`、`/comments`、`/profile`
+- 接口实验页：`/lab/api`
 
 ## 开发运行
 
@@ -37,10 +45,10 @@ pnpm --filter @bifrost/helm tauri build
 
 ## 配置
 
-- 后端默认网关：`http://localhost:8080`
-- 如需覆盖，请在 Tauri/Rust 侧通过环境变量配置 `GJALLAR_URL`
+- 默认网关：`http://localhost:8080`
+- 可通过环境变量 `GJALLAR_URL` 覆盖
 
-## 关联文档
+## 相关文档
 
 - [IMPLEMENTATION](./IMPLEMENTATION.md)
 - [FRONTEND_API](../../../docs/FRONTEND_API.md)

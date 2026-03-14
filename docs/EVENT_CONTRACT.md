@@ -2,25 +2,32 @@
 
 > 最后更新：2026-03-14
 
-本文档定义 Go 与 Rust 服务之间的 NATS 事件契约。
+## 目录
 
-## 1. Subject 约定
+- [主题约定](#主题约定)
+- [Stream 与 Consumer](#stream-与-consumer)
+- [消息载荷](#消息载荷)
+- [Feature 开关](#feature-开关)
+
+## 主题约定
 
 - `content.post.created`
 - `content.post.updated`
 - `content.post.deleted`
-- `content.post.>`（文章事件通配）
-- `content.>`（内容通配）
+- `content.post.>`
+- `content.>`
 
-## 2. Stream / Consumer
+## Stream 与 Consumer
 
-- Stream：`BIFROST_CONTENT`
-- Mirror Durable Consumer：`mirror_indexer`
-- 默认过滤：`content.post.>`
+- Stream: `BIFROST_CONTENT`
+- Durable Consumer: `mirror_indexer`
+- 默认过滤: `content.post.>`
 
-服务启动时会执行拓扑 ensure，不强依赖固定启动顺序。
+说明：服务启动时会执行拓扑 ensure，不要求严格启动顺序。
 
-## 3. 事件载荷
+## 消息载荷
+
+### 标准示例
 
 ```json
 {
@@ -33,16 +40,16 @@
 }
 ```
 
-字段说明：
+### 字段定义
 
-- `id`：int64，必填
-- `slug`：string，建议填
-- `title`：string，建议填（Mirror 建索引需要）
-- `summary`：string，可选
-- `status`：int32，可选（`1=draft`，`2=published`，`3=archived`）
-- `published_at`：Unix 秒时间戳，可选
+- `id`: int64，必填
+- `slug`: string，建议提供
+- `title`: string，建议提供（索引需要）
+- `summary`: string，可选
+- `status`: int32，可选（1=draft, 2=published, 3=archived）
+- `published_at`: int64（Unix 秒），可选
 
-最小兼容载荷：
+### 最小兼容示例
 
 ```json
 {
@@ -50,22 +57,16 @@
 }
 ```
 
-Mirror 在关键字段不足时会 ACK 并跳过，避免阻塞消费。当前实现对 `title` 或 `slug` 为空的事件仅跳过索引，不会中断消费。
+说明：Mirror 对关键字段不足的消息会 ACK 并跳过索引，不阻塞消费。
 
-## 4. Feature 开关
+## Feature 开关
 
-| 维度         | 变量                                       | 默认值            | 说明                    |
-| ------------ | ------------------------------------------ | ----------------- | ----------------------- |
-| Go           | `BIFROST_FEATURES_ENABLE_MESSENGER`        | `true`            | 启用 NATS 发布/消费     |
-| Go           | `BIFROST_FEATURES_ENABLE_SEARCH`           | `true`            | 启用 Gjallar 搜索代理   |
-| Go           | `BIFROST_FEATURES_ENABLE_STORAGE`          | `true`            | 启用 Nexus 存储能力     |
-| Rust(Mirror) | `APP_MIRROR__FEATURES__ENABLE_NATS_WORKER` | `true`            | 启用 Mirror NATS Worker |
-| Rust(Mirror) | `APP_MIRROR__NATS__FILTER_SUBJECT`         | `content.post.>`  | 订阅过滤                |
-| Rust(Mirror) | `APP_MIRROR__NATS__STREAM_NAME`            | `BIFROST_CONTENT` | Stream 名称             |
-| Rust(Mirror) | `APP_MIRROR__NATS__CONSUMER_NAME`          | `mirror_indexer`  | Durable Consumer 名称   |
-
-## 5. 建议
-
-- 生产环境显式配置以上开关，避免默认值漂移。
-- 事件 schema 变更时先更新本文件，再同步 Go/Rust 解析逻辑。
-- 保持向后兼容：新增字段可选，避免删除既有字段。
+| 维度 | 变量 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| Go | `BIFROST_FEATURES_ENABLE_MESSENGER` | `true` | 启用 NATS 发布/消费 |
+| Go | `BIFROST_FEATURES_ENABLE_SEARCH` | `true` | 启用 Gjallar 搜索代理 |
+| Go | `BIFROST_FEATURES_ENABLE_STORAGE` | `true` | 启用 Nexus 存储能力 |
+| Rust(Mirror) | `APP_MIRROR__FEATURES__ENABLE_NATS_WORKER` | `true` | 启用 Mirror NATS Worker |
+| Rust(Mirror) | `APP_MIRROR__NATS__FILTER_SUBJECT` | `content.post.>` | 订阅过滤 |
+| Rust(Mirror) | `APP_MIRROR__NATS__STREAM_NAME` | `BIFROST_CONTENT` | Stream 名称 |
+| Rust(Mirror) | `APP_MIRROR__NATS__CONSUMER_NAME` | `mirror_indexer` | Consumer 名称 |

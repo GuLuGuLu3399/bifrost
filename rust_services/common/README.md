@@ -1,6 +1,12 @@
 ﻿# RUST COMMON
 
-`rust_services/common` 是 Rust 服务共享基础库。
+> Rust 服务共享基础库。
+
+## 目录
+
+- [提供能力](#提供能力)
+- [典型用法](#典型用法)
+- [实践建议](#实践建议)
 
 ## 提供能力
 
@@ -21,8 +27,8 @@ common = { workspace = true }
 use common::{ContextData, CodeError, ErrorCode};
 ```
 
-## 建议
+## 实践建议
 
-- 服务启动统一走 common 的日志/追踪初始化。
-- 对外错误统一转为 `CodeError`，避免内部细节泄漏。
+- 服务启动统一走 common 日志/追踪初始化。
+- 对外错误统一为 `CodeError`，避免泄露内部细节。
 - 服务间调用尽量透传 `ContextData`。

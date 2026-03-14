@@ -1,10 +1,21 @@
 ﻿# GO SERVICES
 
-Bifrost 的 Go 服务实现目录，包含：
+> Bifrost Go 服务实现目录（Gateway + Command + Query）。
 
-- `gjallar`：HTTP 网关（统一入口、鉴权、CORS、路由聚合）
-- `nexus`：写服务（文章增删改、事务内同步渲染）
-- `beacon`：读服务（列表/详情查询、缓存协作）
+## 目录
+
+- [模块说明](#模块说明)
+- [目录结构](#目录结构)
+- [本地运行](#本地运行)
+- [Feature 开关](#feature-开关)
+- [现状说明](#现状说明)
+- [测试](#测试)
+
+## 模块说明
+
+- `gjallar`: HTTP 网关（鉴权、路由聚合、CORS）
+- `nexus`: 写服务（增删改、事件发布）
+- `beacon`: 读服务（详情、列表、评论查询）
 
 ## 目录结构
 
@@ -15,9 +26,6 @@ go_services/
 │   ├── nexus/
 │   └── beacon/
 ├── configs/
-│   ├── gjallar.yaml
-│   ├── nexus.yaml
-│   └── beacon.yaml
 ├── internal/
 │   ├── gjallar/
 │   ├── nexus/
@@ -36,20 +44,18 @@ go run ./cmd/beacon/main.go -f configs/beacon.yaml
 go run ./cmd/gjallar/main.go -f configs/gjallar.yaml
 ```
 
-## 当前关键说明
-
-- Beacon `ListPosts` 已修复 SQL 组装与可空字段扫描问题。
-- Gjallar CORS 来源改为配置项 `cors.allowed_origins`。
-- 默认开发来源建议保留 `3000/3001/3002`。
-- Nexus 侧支持按 `features.enable_storage` 注册 `StorageService`，但 Gjallar 目前未注册该服务的 Gateway handler（`/v1/storage/upload_ticket` 经网关仍为 404）。
-
 ## Feature 开关
 
 - `features.enable_messenger`
 - `features.enable_storage`
 - `features.enable_search`
 
-可按 MVP 场景关闭非核心能力以减少依赖（NATS/MinIO/搜索链路）。
+## 现状说明
+
+- Beacon `ListPosts` 查询与可空字段扫描问题已修复。
+- Gjallar CORS 来源改为配置化（默认 3000/3001/3002）。
+- Nexus 侧可按开关启用 `StorageService`。
+- Gjallar 目前未注册 `StorageService` 的 gateway handler，`/v1/storage/upload_ticket` 经网关返回 `404`。
 
 ## 测试
 

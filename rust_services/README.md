@@ -1,24 +1,28 @@
 ﻿# RUST SERVICES
 
-Bifrost 的 Rust 工作区，包含高性能渲染、搜索和异步处理服务。
+> Bifrost Rust 工作区（渲染 / 搜索 / 异步处理）。
+
+## 目录
+
+- [服务列表](#服务列表)
+- [构建](#构建)
+- [运行](#运行)
+- [Docker](#docker)
 
 ## 服务列表
 
-- `forge`：Markdown 渲染 gRPC 服务
-- `mirror`：全文检索 gRPC 服务（Tantivy）
-- `oracle`：异步分析与统计服务
-- `common`：共享库（proto、错误模型、ctx、日志/otel）
+- `forge`: Markdown 渲染服务
+- `mirror`: 全文检索服务（Tantivy）
+- `oracle`: 异步分析与处理服务
+- `common`: 共享基础库
 
 ## 构建
 
 ```powershell
 cd rust_services
 cargo build
-```
 
-按服务构建：
-
-```powershell
+# 按服务构建
 cargo build -p forge
 cargo build -p mirror
 cargo build -p oracle
@@ -34,7 +38,7 @@ cargo run -p forge
 # mirror
 $env:APP_MIRROR__SERVER__ADDR="127.0.0.1:9093"
 $env:APP_MIRROR__NATS__URL="nats://127.0.0.1:4222"
-# 可选：关闭 NATS 索引消费 worker
+# 可选：关闭 NATS worker
 # $env:APP_MIRROR__FEATURES__ENABLE_NATS_WORKER="false"
 # 可选：覆盖默认拓扑
 # $env:APP_MIRROR__NATS__STREAM_NAME="BIFROST_CONTENT"
@@ -48,8 +52,6 @@ cargo run -p oracle
 ```
 
 ## Docker
-
-根目录 `rust_services/Dockerfile` 使用 `SERVICE` 构建参数：
 
 ```powershell
 docker build -f rust_services/Dockerfile -t bifrost-forge --build-arg SERVICE=forge .
