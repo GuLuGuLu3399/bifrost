@@ -28,7 +28,7 @@
   "slug": "hello-bifrost",
   "title": "Hello Bifrost",
   "summary": "A quick introduction",
-  "status": "published",
+  "status": 2,
   "published_at": 1760000000
 }
 ```
@@ -39,7 +39,7 @@
 - `slug`：string，建议填
 - `title`：string，建议填（Mirror 建索引需要）
 - `summary`：string，可选
-- `status`：string，可选（如 `draft` / `published` / `archived`）
+- `status`：int32，可选（`1=draft`，`2=published`，`3=archived`）
 - `published_at`：Unix 秒时间戳，可选
 
 最小兼容载荷：
@@ -50,19 +50,19 @@
 }
 ```
 
-Mirror 在关键字段不足时会 ACK 并跳过，避免阻塞消费。
+Mirror 在关键字段不足时会 ACK 并跳过，避免阻塞消费。当前实现对 `title` 或 `slug` 为空的事件仅跳过索引，不会中断消费。
 
 ## 4. Feature 开关
 
-| 维度 | 变量 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| Go | `BIFROST_FEATURES_ENABLE_MESSENGER` | `true` | 启用 NATS 发布/消费 |
-| Go | `BIFROST_FEATURES_ENABLE_SEARCH` | `true` | 启用 Gjallar 搜索代理 |
-| Go | `BIFROST_FEATURES_ENABLE_STORAGE` | `true` | 启用 Nexus 存储能力 |
-| Rust(Mirror) | `APP_MIRROR__FEATURES__ENABLE_NATS_WORKER` | `true` | 启用 Mirror NATS Worker |
-| Rust(Mirror) | `APP_MIRROR__NATS__FILTER_SUBJECT` | `content.post.>` | 订阅过滤 |
-| Rust(Mirror) | `APP_MIRROR__NATS__STREAM_NAME` | `BIFROST_CONTENT` | Stream 名称 |
-| Rust(Mirror) | `APP_MIRROR__NATS__CONSUMER_NAME` | `mirror_indexer` | Durable Consumer 名称 |
+| 维度         | 变量                                       | 默认值            | 说明                    |
+| ------------ | ------------------------------------------ | ----------------- | ----------------------- |
+| Go           | `BIFROST_FEATURES_ENABLE_MESSENGER`        | `true`            | 启用 NATS 发布/消费     |
+| Go           | `BIFROST_FEATURES_ENABLE_SEARCH`           | `true`            | 启用 Gjallar 搜索代理   |
+| Go           | `BIFROST_FEATURES_ENABLE_STORAGE`          | `true`            | 启用 Nexus 存储能力     |
+| Rust(Mirror) | `APP_MIRROR__FEATURES__ENABLE_NATS_WORKER` | `true`            | 启用 Mirror NATS Worker |
+| Rust(Mirror) | `APP_MIRROR__NATS__FILTER_SUBJECT`         | `content.post.>`  | 订阅过滤                |
+| Rust(Mirror) | `APP_MIRROR__NATS__STREAM_NAME`            | `BIFROST_CONTENT` | Stream 名称             |
+| Rust(Mirror) | `APP_MIRROR__NATS__CONSUMER_NAME`          | `mirror_indexer`  | Durable Consumer 名称   |
 
 ## 5. 建议
 

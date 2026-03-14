@@ -43,13 +43,19 @@
 - `GET /v1/search?query=...&page=1&page_size=20`
 - `GET /v1/search/suggest?prefix=...&limit=5`
 
-说明：搜索使用扁平分页参数 `page/page_size`，与 Beacon 不同。
+说明：
+
+- 搜索使用扁平分页参数 `page/page_size`，与 Beacon 不同。
+- `/v1/search` 支持 `query` 或 `q` 作为关键词字段。
+- `/v1/search` 过滤参数为 `category_id`、`tag_id`、`author_id`。
+- 参数校验：`page >= 1`，`page_size` 范围 `1~100`，`limit` 范围 `1~20`。
+- 当 Mirror 未启用或不可达时，`/v1/search` 与 `/v1/search/suggest` 返回 `503`。
 
 ### 3.3 登录后接口
 
 - `POST /v1/posts/{post_id}/comments`
 - `DELETE /v1/comments/{comment_id}`
-- `POST /v1/storage/upload_ticket`（当前网关未注册 StorageService，现状会 404）
+- `POST /v1/storage/upload_ticket`（Nexus 侧已实现 StorageService，但 Gjallar 还未注册对应 Gateway handler，现状会 404）
 
 ### 3.4 管理接口
 

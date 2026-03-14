@@ -20,16 +20,16 @@ bifrost/
 
 ## 2. 服务拓扑
 
-| 层级 | 服务 | 端口 | 说明 |
-| --- | --- | --- | --- |
+| 层级   | 服务    | 端口      | 说明                           |
+| ------ | ------- | --------- | ------------------------------ |
 | 接入层 | Gjallar | 8080/HTTP | API 网关，鉴权、路由聚合、CORS |
-| 写链路 | Nexus | 9001/gRPC | 内容写入、发布事件、调用 Forge |
-| 读链路 | Beacon | 9002/gRPC | 内容读取、分页、缓存协作 |
-| 渲染层 | Forge | 9092/gRPC | Markdown 渲染为 HTML + TOC |
-| 搜索层 | Mirror | 9093/gRPC | 全文检索、建议词、分面 |
-| 异步层 | Oracle | 9094/gRPC | 异步统计与分析任务 |
-| 前端 | Horizon | 3001/dev | Nuxt 内容站 |
-| 前端 | Helm | 3000/dev | Tauri 管理端 |
+| 写链路 | Nexus   | 9001/gRPC | 内容写入、发布事件、调用 Forge |
+| 读链路 | Beacon  | 9002/gRPC | 内容读取、分页、缓存协作       |
+| 渲染层 | Forge   | 9092/gRPC | Markdown 渲染为 HTML + TOC     |
+| 搜索层 | Mirror  | 9093/gRPC | 全文检索、建议词、分面         |
+| 异步层 | Oracle  | 9094/gRPC | 异步统计与分析任务             |
+| 前端   | Horizon | 3001/dev  | Nuxt 内容站                    |
+| 前端   | Helm    | 3000/dev  | Tauri 管理端                   |
 
 ## 3. 关键链路
 
@@ -59,8 +59,10 @@ bifrost/
 
 - Beacon `ListPosts` 查询已修复：JOIN 与 WHERE 顺序正确，LEFT JOIN 字段按可空类型扫描。
 - Gjallar CORS 改为配置驱动：默认允许 `localhost:3000/3001/3002`。
+- Gjallar 在进入 gRPC-Gateway 前会清洗空查询参数（空字符串、`null`、`undefined`），避免数值字段解析报错。
 - Horizon 登录页改用 `$fetch` 触发登录请求，避免在事件处理器中误用 `useFetch`。
 - 网关层当前仍未注册 `StorageService`，`/v1/storage/upload_ticket` 通过 Gjallar 调用会 404。
+- Gjallar 搜索链路支持按开关降级：关闭 `features.enable_search` 或 Mirror 不可达时，搜索接口返回 `503`。
 
 ## 5. 数据与事件
 

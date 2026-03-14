@@ -41,6 +41,7 @@ go run ./cmd/gjallar/main.go -f configs/gjallar.yaml
 - Beacon `ListPosts` 已修复 SQL 组装与可空字段扫描问题。
 - Gjallar CORS 来源改为配置项 `cors.allowed_origins`。
 - 默认开发来源建议保留 `3000/3001/3002`。
+- Nexus 侧支持按 `features.enable_storage` 注册 `StorageService`，但 Gjallar 目前未注册该服务的 Gateway handler（`/v1/storage/upload_ticket` 经网关仍为 404）。
 
 ## Feature 开关
 

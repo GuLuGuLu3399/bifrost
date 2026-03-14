@@ -34,6 +34,12 @@ cargo run -p forge
 # mirror
 $env:APP_MIRROR__SERVER__ADDR="127.0.0.1:9093"
 $env:APP_MIRROR__NATS__URL="nats://127.0.0.1:4222"
+# 可选：关闭 NATS 索引消费 worker
+# $env:APP_MIRROR__FEATURES__ENABLE_NATS_WORKER="false"
+# 可选：覆盖默认拓扑
+# $env:APP_MIRROR__NATS__STREAM_NAME="BIFROST_CONTENT"
+# $env:APP_MIRROR__NATS__CONSUMER_NAME="mirror_indexer"
+# $env:APP_MIRROR__NATS__FILTER_SUBJECT="content.post.>"
 cargo run -p mirror
 
 # oracle
